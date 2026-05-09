@@ -1,0 +1,20 @@
+[
+  { "year": 2009, "limitCents": 500000 },
+  { "year": 2010, "limitCents": 500000 },
+  { "year": 2011, "limitCents": 500000 },
+  { "year": 2012, "limitCents": 500000 },
+  { "year": 2013, "limitCents": 550000 },
+  { "year": 2014, "limitCents": 550000 },
+  { "year": 2015, "limitCents": 1000000 },
+  { "year": 2016, "limitCents": 550000 },
+  { "year": 2017, "limitCents": 550000 },
+  { "year": 2018, "limitCents": 550000 },
+  { "year": 2019, "limitCents": 600000 },
+  { "year": 2020, "limitCents": 600000 },
+  { "year": 2021, "limitCents": 600000 },
+  { "year": 2022, "limitCents": 600000 },
+  { "year": 2023, "limitCents": 650000 },
+  { "year": 2024, "limitCents": 700000 },
+  { "year": 2025, "limitCents": 700000 },
+  { "year": 2026, "limitCents": 700000 }
+]

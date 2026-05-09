@@ -1,13 +1,57 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "sqlite"
+}
+
+enum TransactionType {
+  CONTRIBUTION
+  WITHDRAWAL
+  QUALIFYING_TRANSFER
+  FEE
+  DIVIDEND
+  INTEREST
+  MARKET_ADJUSTMENT
+  BALANCE_SNAPSHOT
+}
+
+model Account {
+  id           String        @id @default(cuid())
+  name         String
+  institution  String
+  notes        String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  transactions Transaction[]
+}
+
+model Transaction {
+  id          String          @id @default(cuid())
+  accountId   String
+  type        TransactionType
+  amountCents Int
+  occurredAt  DateTime
+  notes       String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  account     Account         @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId, occurredAt])
+  @@index([type, occurredAt])
+}
+
+model AnnualLimit {
+  year       Int @id
+  limitCents Int
+}
+
+model UserSettings {
+  id                            Int      @id @default(1)
+  startingYear                  Int
+  startingContributionRoomCents Int
+  contributionRoomNotes         String?
+  createdAt                     DateTime @default(now())
+  updatedAt                     DateTime @updatedAt
 }
