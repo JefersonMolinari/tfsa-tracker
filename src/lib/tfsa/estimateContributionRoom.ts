@@ -125,13 +125,14 @@ export function estimateTfsaContributionRoom(input: {
   let contributionsThisYearCents = 0;
   let withdrawalsThisYearCents = 0;
   for (let year = input.settings.startingYear; year <= asOfYear; year += 1) {
-    if (year > input.settings.startingYear) {
-      const annualLimit = annualLimitByYear.get(year);
-      if (annualLimit === undefined) {
-        throw new Error(`Missing annual limit for year ${year}.`);
-      }
+    const annualLimit = annualLimitByYear.get(year);
+    if (annualLimit === undefined) {
+      throw new Error(`Missing annual limit for year ${year}.`);
+    }
 
-      availableContributionRoomCents += annualLimit;
+    availableContributionRoomCents += annualLimit;
+
+    if (year > input.settings.startingYear) {
       availableContributionRoomCents += withdrawalsByYear.get(year - 1) ?? 0;
     }
 
@@ -153,8 +154,7 @@ export function estimateTfsaContributionRoom(input: {
     withdrawalsThisYearCents,
     restoredFromPriorYearWithdrawalsCents:
       asOfYear > input.settings.startingYear ? withdrawalsByYear.get(asOfYear - 1) ?? 0 : 0,
-    annualLimitThisYearCents:
-      asOfYear === input.settings.startingYear ? 0 : (annualLimitByYear.get(asOfYear) ?? 0),
+    annualLimitThisYearCents: annualLimitByYear.get(asOfYear) ?? 0,
     isOvercontributed: availableContributionRoomCents < 0,
   };
 }

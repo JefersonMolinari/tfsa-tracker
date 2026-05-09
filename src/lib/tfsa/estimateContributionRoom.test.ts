@@ -9,13 +9,29 @@ import {
 const limits = annualLimits as TfsaAnnualLimit[];
 
 describe("estimateTfsaContributionRoom", () => {
-  it("returns $5,000 of 2026 room after a $2,000 contribution from a $7,000 start", () => {
+  it("includes the starting year annual limit when no transactions exist", () => {
     const estimate = estimateTfsaContributionRoom({
       asOf: "2026-06-15T00:00:00.000Z",
       annualLimits: limits,
       settings: {
         startingYear: 2026,
-        startingContributionRoomCents: 700000,
+        startingContributionRoomCents: 0,
+      },
+      transactions: [],
+    });
+
+    expect(estimate.availableContributionRoomCents).toBe(700000);
+    expect(estimate.annualLimitThisYearCents).toBe(700000);
+    expect(estimate.isOvercontributed).toBe(false);
+  });
+
+  it("returns $5,000 of 2026 room after a $2,000 contribution from a zero carry-in start", () => {
+    const estimate = estimateTfsaContributionRoom({
+      asOf: "2026-06-15T00:00:00.000Z",
+      annualLimits: limits,
+      settings: {
+        startingYear: 2026,
+        startingContributionRoomCents: 0,
       },
       transactions: [
         {
@@ -37,7 +53,7 @@ describe("estimateTfsaContributionRoom", () => {
       annualLimits: limits,
       settings: {
         startingYear: 2026,
-        startingContributionRoomCents: 700000,
+        startingContributionRoomCents: 0,
       },
       transactions: [
         {
@@ -53,7 +69,7 @@ describe("estimateTfsaContributionRoom", () => {
       annualLimits: [...limits, { year: 2027, limitCents: 700000 }],
       settings: {
         startingYear: 2026,
-        startingContributionRoomCents: 700000,
+        startingContributionRoomCents: 0,
       },
       transactions: [
         {
@@ -76,7 +92,7 @@ describe("estimateTfsaContributionRoom", () => {
       annualLimits: limits,
       settings: {
         startingYear: 2026,
-        startingContributionRoomCents: 700000,
+        startingContributionRoomCents: 0,
       },
       transactions: [
         {
@@ -102,7 +118,7 @@ describe("estimateTfsaContributionRoom", () => {
       annualLimits: limits,
       settings: {
         startingYear: 2026,
-        startingContributionRoomCents: 700000,
+        startingContributionRoomCents: 0,
       },
       transactions: [
         {
@@ -123,7 +139,7 @@ describe("estimateTfsaContributionRoom", () => {
       annualLimits: limits,
       settings: {
         startingYear: 2026,
-        startingContributionRoomCents: 700000,
+        startingContributionRoomCents: 0,
       },
       transactions: [
         {
@@ -145,7 +161,7 @@ describe("estimateTfsaContributionRoom", () => {
       annualLimits: limits,
       settings: {
         startingYear: 2026,
-        startingContributionRoomCents: 700000,
+        startingContributionRoomCents: 0,
       },
       transactions: [
         {
@@ -177,7 +193,7 @@ describe("estimateTfsaContributionRoom", () => {
       ],
     });
 
-    expect(estimate.availableContributionRoomCents).toBe(700000);
+    expect(estimate.availableContributionRoomCents).toBe(1400000);
     expect(estimate.contributionsThisYearCents).toBe(250000);
     expect(estimate.withdrawalsThisYearCents).toBe(0);
     expect(estimate.isOvercontributed).toBe(false);
@@ -207,7 +223,7 @@ describe("estimateTfsaContributionRoom", () => {
 
     expect(estimate.annualLimitThisYearCents).toBe(700000);
     expect(estimate.restoredFromPriorYearWithdrawalsCents).toBe(100000);
-    expect(estimate.availableContributionRoomCents).toBe(1500000);
+    expect(estimate.availableContributionRoomCents).toBe(2200000);
   });
 
   it("carries forward prior-year contributions when estimating a later year", () => {
@@ -232,7 +248,7 @@ describe("estimateTfsaContributionRoom", () => {
       ],
     });
 
-    expect(estimate.availableContributionRoomCents).toBe(1800000);
+    expect(estimate.availableContributionRoomCents).toBe(2500000);
   });
 
   it("ignores transfers, fees, market changes, and income events for room estimation", () => {
@@ -272,7 +288,7 @@ describe("estimateTfsaContributionRoom", () => {
       ],
     });
 
-    expect(estimate.availableContributionRoomCents).toBe(1400000);
+    expect(estimate.availableContributionRoomCents).toBe(2100000);
     expect(estimate.contributionsThisYearCents).toBe(0);
     expect(estimate.withdrawalsThisYearCents).toBe(0);
   });
@@ -283,13 +299,13 @@ describe("estimateTfsaContributionRoom", () => {
       annualLimits: limits,
       settings: {
         startingYear: 2024,
-        startingContributionRoomCents: 300000,
+        startingContributionRoomCents: 0,
       },
       transactions: [
         {
           occurredAt: "2024-05-01T00:00:00.000Z",
           type: "CONTRIBUTION",
-          amountCents: 450000,
+          amountCents: 850000,
         },
       ],
     });
@@ -306,6 +322,20 @@ describe("estimateTfsaContributionRoom", () => {
         settings: {
           startingYear: 2025,
           startingContributionRoomCents: 700000,
+        },
+        transactions: [],
+      }),
+    ).toThrow("Missing annual limit for year 2026.");
+  });
+
+  it("throws when the starting year annual limit is missing", () => {
+    expect(() =>
+      estimateTfsaContributionRoom({
+        asOf: "2026-01-10T00:00:00.000Z",
+        annualLimits: limits.filter((limit) => limit.year !== 2026),
+        settings: {
+          startingYear: 2026,
+          startingContributionRoomCents: 0,
         },
         transactions: [],
       }),

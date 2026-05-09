@@ -34,6 +34,8 @@ Keep TFSA contribution-room logic in pure TypeScript utility functions.
 
 Do not duplicate contribution-room logic in React components.
 
+For every commit that includes Codex-generated code, add `[GENERATED]` to the commit message.
+
 ## Data privacy
 
 Never ask for or store:
