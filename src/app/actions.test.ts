@@ -76,6 +76,29 @@ describe("transaction actions", () => {
     expect(redirect).toHaveBeenCalledWith("/transactions?year=2026&type=WITHDRAWAL");
     expect(revalidatePath).toHaveBeenCalledWith("/transactions");
   });
+
+  it("redirects creates back to the dashboard when redirectTo is set to /", async () => {
+    const { createTransaction } = await import("./actions");
+    const formData = new FormData();
+    formData.set("accountId", "acct_1");
+    formData.set("type", "CONTRIBUTION");
+    formData.set("occurredAt", "2026-05-10");
+    formData.set("amount", "2500.00");
+    formData.set("notes", "Dashboard contribution");
+    formData.set("redirectTo", "/");
+
+    await createTransaction(formData);
+
+    expect(db.transaction.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        accountId: "acct_1",
+        type: "CONTRIBUTION",
+        amountCents: 250000,
+      }),
+    });
+    expect(redirect).toHaveBeenCalledWith("/");
+    expect(revalidatePath).toHaveBeenCalledWith("/");
+  });
 });
 
 describe("account actions", () => {

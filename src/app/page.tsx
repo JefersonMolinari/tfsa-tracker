@@ -1,3 +1,5 @@
+import { createTransaction } from "@/app/actions";
+import { DashboardAddTransactionModal } from "@/app/DashboardAddTransactionModal";
 import { Card, EmptyState, PageIntro } from "@/components/ui";
 import { formatCents } from "@/lib/format";
 import { getAppData } from "@/lib/tfsa/data";
@@ -64,7 +66,7 @@ function StatCard({
 }
 
 export default async function Home() {
-  const { annualLimits, settings, transactions } = await getAppData();
+  const { accounts, annualLimits, settings, transactions } = await getAppData();
 
   const summary = buildDashboardSummary({
     annualLimits,
@@ -85,6 +87,15 @@ export default async function Home() {
       <PageIntro
         title="Dashboard"
         description="A calm snapshot of your TFSA activity, with contribution room always shown as an estimate."
+        aside={
+          <DashboardAddTransactionModal
+            accountOptions={accounts.map((account) => ({
+              label: `${account.name} · ${account.institution}`,
+              value: account.id,
+            }))}
+            createTransactionAction={createTransaction}
+          />
+        }
       />
 
       <WarningBanner warningLevel={summary.warningLevel} />
