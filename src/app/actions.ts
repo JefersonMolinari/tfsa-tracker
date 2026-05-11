@@ -41,6 +41,10 @@ function revalidateAppPages() {
   revalidatePath("/settings");
 }
 
+function redirectToPath(formData: FormData, fallbackPath: string) {
+  return getOptionalString(formData, "redirectTo") ?? fallbackPath;
+}
+
 export async function createAccount(formData: FormData) {
   const parsed = accountSchema.parse({
     name: getString(formData, "name"),
@@ -122,7 +126,7 @@ export async function createTransaction(formData: FormData) {
   });
 
   revalidateAppPages();
-  redirect("/transactions");
+  redirect(redirectToPath(formData, "/transactions"));
 }
 
 export async function updateTransaction(formData: FormData) {
@@ -135,7 +139,7 @@ export async function updateTransaction(formData: FormData) {
   });
 
   revalidateAppPages();
-  redirect("/transactions");
+  redirect(redirectToPath(formData, "/transactions"));
 }
 
 export async function deleteTransaction(formData: FormData) {
@@ -146,7 +150,7 @@ export async function deleteTransaction(formData: FormData) {
   });
 
   revalidateAppPages();
-  redirect("/transactions");
+  redirect(redirectToPath(formData, "/transactions"));
 }
 
 export async function saveSettings(formData: FormData) {

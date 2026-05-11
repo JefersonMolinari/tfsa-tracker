@@ -260,3 +260,33 @@ export function DangerButton({
     </button>
   );
 }
+
+export function IconButton({
+  children,
+  label,
+  tone = "neutral",
+  type = "button",
+  onClick,
+}: {
+  children: ReactNode;
+  label: string;
+  tone?: "neutral" | "danger";
+  type?: "button" | "submit";
+  onClick?: () => void;
+}) {
+  const toneClass =
+    tone === "danger"
+      ? "border-red-200 bg-red-50 text-red-800 hover:bg-red-100"
+      : "border-emerald-200 bg-white text-emerald-900 hover:bg-emerald-50";
+
+  return (
+    <button
+      aria-label={label}
+      className={`inline-flex h-10 w-10 items-center justify-center rounded-full border transition ${toneClass}`}
+      onClick={onClick}
+      type={type}
+    >
+      {children}
+    </button>
+  );
+}

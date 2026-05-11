@@ -3,20 +3,20 @@ import type { TransactionType } from "@prisma/client";
 import Link from "next/link";
 
 import { createTransaction, deleteTransaction, updateTransaction } from "@/app/actions";
+import { TransactionsTable } from "@/app/transactions/TransactionsTable";
 import {
   Card,
-  DangerButton,
   EmptyState,
   Field,
   PageIntro,
   PrimaryButton,
-  SecondaryButton,
   SectionTitle,
   SelectField,
   TextArea,
 } from "@/components/ui";
-import { formatCents, formatDate, formatDateInput } from "@/lib/format";
+import { formatCents } from "@/lib/format";
 import { getTransactionsPageData } from "@/lib/tfsa/data";
+import { buildTransactionSubtotals } from "@/lib/tfsa/transactionSubtotals";
 import { transactionTypeLabels, transactionTypes } from "@/lib/tfsa/transactionTypes";
 
 type SearchParams = Promise<{
@@ -35,6 +35,29 @@ function buildTransactionTypeOptions() {
   ];
 }
 
+function buildTransactionsPath(filters: {
+  accountId?: string;
+  year?: string;
+  type?: string;
+}) {
+  const params = new URLSearchParams();
+
+  if (filters.accountId) {
+    params.set("accountId", filters.accountId);
+  }
+
+  if (filters.year) {
+    params.set("year", filters.year);
+  }
+
+  if (filters.type) {
+    params.set("type", filters.type);
+  }
+
+  const query = params.toString();
+  return query ? `/transactions?${query}` : "/transactions";
+}
+
 export default async function TransactionsPage({
   searchParams,
 }: {
@@ -50,6 +73,8 @@ export default async function TransactionsPage({
     year: Number.isFinite(year) ? year : undefined,
     type,
   });
+  const redirectTo = buildTransactionsPath(filters);
+  const subtotalSummary = buildTransactionSubtotals(transactions);
 
   const availableYears = Array.from(
     new Set(transactions.map((transaction) => transaction.occurredAt.getUTCFullYear())),
@@ -91,6 +116,7 @@ export default async function TransactionsPage({
             />
           ) : (
             <form action={createTransaction} className="grid gap-4">
+              <input name="redirectTo" type="hidden" value={redirectTo} />
               <SelectField
                 label="Account"
                 name="accountId"
@@ -166,7 +192,7 @@ export default async function TransactionsPage({
       <Card>
         <SectionTitle
           title="Transaction list"
-          description="Edit any row in place. Contribution room calculations continue to come from the shared utility."
+          description="Review filtered activity in a compact table, edit rows inline, and keep subtotal math consistent across the page."
         />
 
         {transactions.length === 0 ? (
@@ -175,78 +201,51 @@ export default async function TransactionsPage({
             description="Add a transaction or widen your filters to see TFSA activity here."
           />
         ) : (
-          <div className="space-y-4">
-            {transactions.map((transaction) => (
-              <div
-                key={transaction.id}
-                className="rounded-[1.5rem] border border-slate-200 bg-slate-50/90 p-5"
-              >
-                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                  <div>
-                    <h3 className="font-semibold text-slate-950">
-                      {transaction.account.name} · {transaction.account.institution}
-                    </h3>
-                    <p className="mt-1 text-sm text-slate-600">
-                      {transactionTypeLabels[transaction.type]} on{" "}
-                      {formatDate(transaction.occurredAt)}
-                    </p>
-                  </div>
-                  <div className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-900">
-                    {formatCents(transaction.amountCents)}
-                  </div>
-                </div>
-
-                {transaction.notes ? (
-                  <p className="mt-3 text-sm leading-6 text-slate-600">{transaction.notes}</p>
-                ) : null}
-
-                <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_auto]">
-                  <form action={updateTransaction} className="grid gap-4">
-                    <input name="transactionId" type="hidden" value={transaction.id} />
-                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                      <SelectField
-                        defaultValue={transaction.accountId}
-                        label="Account"
-                        name="accountId"
-                        options={accountOptions.filter((option) => option.value !== "")}
-                        required
-                      />
-                      <SelectField
-                        defaultValue={transaction.type}
-                        label="Type"
-                        name="type"
-                        options={buildTransactionTypeOptions().slice(1)}
-                        required
-                      />
-                      <Field
-                        defaultValue={formatDateInput(transaction.occurredAt)}
-                        label="Date"
-                        name="occurredAt"
-                        required
-                        type="date"
-                      />
-                      <Field
-                        defaultValue={(transaction.amountCents / 100).toString()}
-                        label="Amount (CAD)"
-                        name="amount"
-                        required
-                        step="0.01"
-                        type="number"
-                      />
+          <div className="space-y-5">
+            <div className="grid gap-3 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
+              <div className="rounded-[1.5rem] border border-emerald-100 bg-emerald-50/70 px-5 py-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-800/80">
+                  Filtered total
+                </p>
+                <p className="mt-3 font-serif text-3xl tracking-tight text-slate-950">
+                  {formatCents(subtotalSummary.grandTotalCents)}
+                </p>
+              </div>
+              <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50/80 px-5 py-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  Subtotals by type
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {subtotalSummary.subtotals.map((subtotal) => (
+                    <div
+                      key={subtotal.type}
+                      className="rounded-full border border-white/70 bg-white px-4 py-2 text-sm text-slate-700"
+                    >
+                      <span className="font-medium text-slate-900">
+                        {transactionTypeLabels[subtotal.type]}
+                      </span>{" "}
+                      <span>{formatCents(subtotal.amountCents)}</span>
                     </div>
-                    <TextArea defaultValue={transaction.notes} label="Notes" name="notes" rows={3} />
-                    <div>
-                      <SecondaryButton>Save changes</SecondaryButton>
-                    </div>
-                  </form>
-
-                  <form action={deleteTransaction} className="self-end">
-                    <input name="transactionId" type="hidden" value={transaction.id} />
-                    <DangerButton>Delete transaction</DangerButton>
-                  </form>
+                  ))}
                 </div>
               </div>
-            ))}
+            </div>
+
+            <TransactionsTable
+              accountOptions={accountOptions.filter((option) => option.value !== "")}
+              deleteTransactionAction={deleteTransaction}
+              redirectTo={redirectTo}
+              transactions={transactions.map((transaction) => ({
+                id: transaction.id,
+                accountId: transaction.accountId,
+                accountLabel: `${transaction.account.name} · ${transaction.account.institution}`,
+                type: transaction.type,
+                amountCents: transaction.amountCents,
+                occurredAt: transaction.occurredAt.toISOString(),
+                notes: transaction.notes,
+              }))}
+              updateTransactionAction={updateTransaction}
+            />
           </div>
         )}
       </Card>

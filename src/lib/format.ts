@@ -15,6 +15,7 @@ const dateFormatter = new Intl.DateTimeFormat("en-CA", {
   year: "numeric",
   month: "short",
   day: "numeric",
+  timeZone: "UTC",
 });
 
 export function formatCents(cents: number): string {
