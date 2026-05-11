@@ -1,5 +1,7 @@
 import type { TransactionType } from "@prisma/client";
 
+import Link from "next/link";
+
 import { createTransaction, deleteTransaction, updateTransaction } from "@/app/actions";
 import {
   Card,
@@ -66,6 +68,14 @@ export default async function TransactionsPage({
       <PageIntro
         title="Transactions"
         description="Record contributions, withdrawals, transfers, fees, and balance events. Filters let you focus on one slice at a time."
+        aside={
+          <Link
+            href="/transactions/export"
+            className="inline-flex rounded-full border border-emerald-200 bg-white px-5 py-3 text-sm font-semibold text-emerald-900 transition hover:bg-emerald-50"
+          >
+            Export CSV
+          </Link>
+        }
       />
 
       <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">

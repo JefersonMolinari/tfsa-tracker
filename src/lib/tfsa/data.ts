@@ -80,3 +80,14 @@ export async function getTransactionsPageData(filters: {
     transactions,
   };
 }
+
+export async function getTransactionsCsvExportData() {
+  return db.transaction.findMany({
+    include: { account: true },
+    orderBy: [
+      { occurredAt: "asc" },
+      { createdAt: "asc" },
+      { id: "asc" },
+    ],
+  });
+}
