@@ -6,7 +6,8 @@ import { PrismaClient } from "@prisma/client";
 import annualLimits from "./tfsa-annual-limits.json" with { type: "json" };
 
 const prismaDirectory = path.dirname(fileURLToPath(import.meta.url));
-const defaultDatabaseUrl = `file:${path.resolve(prismaDirectory, "dev.db")}`;
+const projectRoot = path.resolve(prismaDirectory, "..");
+const defaultDatabaseUrl = `file:${path.resolve(projectRoot, "prisma", "dev.db")}`;
 
 function resolveDatabaseUrl(databaseUrl) {
   if (!databaseUrl.startsWith("file:")) {
@@ -14,11 +15,12 @@ function resolveDatabaseUrl(databaseUrl) {
   }
 
   const sqlitePath = databaseUrl.slice("file:".length);
+
   if (sqlitePath === ":memory:" || path.isAbsolute(sqlitePath)) {
     return databaseUrl;
   }
 
-  return `file:${path.resolve(prismaDirectory, sqlitePath)}`;
+  return `file:${path.resolve(projectRoot, sqlitePath)}`;
 }
 
 const databaseUrl = resolveDatabaseUrl(process.env.DATABASE_URL ?? defaultDatabaseUrl);
