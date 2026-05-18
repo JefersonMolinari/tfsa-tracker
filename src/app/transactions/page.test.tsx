@@ -44,9 +44,13 @@ describe("TransactionsPage", () => {
     const html = renderToStaticMarkup(view);
 
     expect(html).toContain("No matching transactions");
+    expect(html).toContain("Add transaction");
     expect(html).toContain("Filter transactions");
     expect(html).toContain("Export");
     expect(html).toContain("Import");
+    expect(html).not.toContain(
+      "Amounts are entered in dollars, stored as integer cents, and used for estimates on the dashboard.",
+    );
     expect(html).not.toContain("Export CSV");
     expect(html).not.toContain("Import CSV");
     expect(html).not.toContain("Use a transactions CSV exported from this app.");

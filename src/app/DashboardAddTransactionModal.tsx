@@ -19,10 +19,14 @@ export function DashboardAddTransactionModal({
   accountOptions,
   createTransactionAction,
   initialOpen = false,
+  modalDescription = "Record TFSA activity without leaving the Dashboard. Amounts are entered in dollars and stored as integer cents.",
+  redirectTo = "/",
 }: {
   accountOptions: AccountOption[];
   createTransactionAction: TransactionAction;
   initialOpen?: boolean;
+  modalDescription?: string;
+  redirectTo?: string;
 }) {
   const [isOpen, setIsOpen] = useState(initialOpen);
 
@@ -53,8 +57,7 @@ export function DashboardAddTransactionModal({
                   Add transaction
                 </h3>
                 <p className="text-sm leading-6 text-slate-600">
-                  Record TFSA activity without leaving the Dashboard. Amounts are entered
-                  in dollars and stored as integer cents.
+                  {modalDescription}
                 </p>
               </div>
               <IconButton
@@ -81,7 +84,7 @@ export function DashboardAddTransactionModal({
               </div>
             ) : (
               <form action={createTransactionAction} className="grid gap-4">
-                <input name="redirectTo" type="hidden" value="/" />
+                <input name="redirectTo" type="hidden" value={redirectTo} />
                 <SelectField
                   label="Account"
                   name="accountId"

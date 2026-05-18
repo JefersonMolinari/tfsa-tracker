@@ -8,17 +8,16 @@ import {
   importTransactionsCsv,
   updateTransaction,
 } from "@/app/actions";
+import { DashboardAddTransactionModal } from "@/app/DashboardAddTransactionModal";
 import { TransactionsImportButton } from "@/app/transactions/TransactionsImportButton";
 import { TransactionsTable } from "@/app/transactions/TransactionsTable";
 import {
   Card,
   EmptyState,
-  Field,
   PageIntro,
   PrimaryButton,
   SectionTitle,
   SelectField,
-  TextArea,
 } from "@/components/ui";
 import { formatCents } from "@/lib/format";
 import { getTransactionsPageData } from "@/lib/tfsa/data";
@@ -97,6 +96,7 @@ export default async function TransactionsPage({
       value: account.id,
     })),
   ];
+  const transactionAccountOptions = accountOptions.filter((option) => option.value !== "");
 
   return (
     <div className="space-y-6">
@@ -105,6 +105,12 @@ export default async function TransactionsPage({
         description="Record contributions, withdrawals, transfers, fees, and balance events. Filters let you focus on one slice at a time."
         aside={
           <div className="flex flex-wrap gap-3">
+            <DashboardAddTransactionModal
+              accountOptions={transactionAccountOptions}
+              createTransactionAction={createTransaction}
+              modalDescription="Record TFSA activity without leaving Transactions. Amounts are entered in dollars and stored as integer cents."
+              redirectTo={redirectTo}
+            />
             <Link
               href="/transactions/export"
               className="inline-flex rounded-full border border-emerald-200 bg-white px-5 py-3 text-sm font-semibold text-emerald-900 transition hover:bg-emerald-50"
@@ -122,91 +128,41 @@ export default async function TransactionsPage({
         </div>
       ) : null}
 
-      <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-        <Card>
-          <SectionTitle
-            title="Add transaction"
-            description="Amounts are entered in dollars, stored as integer cents, and used for estimates on the dashboard."
+      <Card>
+        <SectionTitle
+          title="Filter transactions"
+          description="Use one or more filters to narrow the list."
+        />
+        <form action="/transactions" className="grid gap-4 md:grid-cols-[1fr_1fr_1fr_auto]">
+          <SelectField
+            defaultValue={accountId}
+            label="Account"
+            name="accountId"
+            options={accountOptions}
           />
-          {accounts.length === 0 ? (
-            <EmptyState
-              title="Create an account first"
-              description="Transactions belong to accounts, so add at least one account before recording TFSA activity."
-            />
-          ) : (
-            <form action={createTransaction} className="grid gap-4">
-              <input name="redirectTo" type="hidden" value={redirectTo} />
-              <SelectField
-                label="Account"
-                name="accountId"
-                options={accountOptions.filter((option) => option.value !== "")}
-                required
-              />
-              <div className="grid gap-4 sm:grid-cols-2">
-                <SelectField
-                  label="Transaction type"
-                  name="type"
-                  options={buildTransactionTypeOptions()}
-                  required
-                />
-                <Field label="Date" name="occurredAt" required type="date" />
-              </div>
-              <Field
-                label="Amount (CAD)"
-                name="amount"
-                placeholder="2000.00"
-                required
-                step="0.01"
-                type="number"
-              />
-              <TextArea
-                label="Notes"
-                name="notes"
-                placeholder="Optional details about the transaction."
-              />
-              <div>
-                <PrimaryButton>Add transaction</PrimaryButton>
-              </div>
-            </form>
-          )}
-        </Card>
-
-        <Card>
-          <SectionTitle
-            title="Filter transactions"
-            description="Use one or more filters to narrow the list."
+          <SelectField
+            defaultValue={year ? String(year) : ""}
+            label="Year"
+            name="year"
+            options={[
+              { label: "All years", value: "" },
+              ...availableYears.map((item) => ({
+                label: String(item),
+                value: String(item),
+              })),
+            ]}
           />
-          <form action="/transactions" className="grid gap-4 md:grid-cols-[1fr_1fr_1fr_auto]">
-            <SelectField
-              defaultValue={accountId}
-              label="Account"
-              name="accountId"
-              options={accountOptions}
-            />
-            <SelectField
-              defaultValue={year ? String(year) : ""}
-              label="Year"
-              name="year"
-              options={[
-                { label: "All years", value: "" },
-                ...availableYears.map((item) => ({
-                  label: String(item),
-                  value: String(item),
-                })),
-              ]}
-            />
-            <SelectField
-              defaultValue={type}
-              label="Transaction type"
-              name="type"
-              options={[{ label: "All types", value: "" }, ...buildTransactionTypeOptions().slice(1)]}
-            />
-            <div className="self-end">
-              <PrimaryButton>Apply filters</PrimaryButton>
-            </div>
-          </form>
-        </Card>
-      </div>
+          <SelectField
+            defaultValue={type}
+            label="Transaction type"
+            name="type"
+            options={[{ label: "All types", value: "" }, ...buildTransactionTypeOptions().slice(1)]}
+          />
+          <div className="self-end">
+            <PrimaryButton>Apply filters</PrimaryButton>
+          </div>
+        </form>
+      </Card>
 
       <Card>
         <SectionTitle
@@ -251,7 +207,7 @@ export default async function TransactionsPage({
             </div>
 
             <TransactionsTable
-              accountOptions={accountOptions.filter((option) => option.value !== "")}
+              accountOptions={transactionAccountOptions}
               deleteTransactionAction={deleteTransaction}
               redirectTo={redirectTo}
               transactions={transactions.map((transaction) => ({
