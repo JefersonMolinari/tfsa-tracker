@@ -23,6 +23,7 @@ vi.mock("@/app/actions", () => ({
   createTransaction: vi.fn(),
   updateTransaction: vi.fn(),
   deleteTransaction: vi.fn(),
+  importTransactionsCsv: vi.fn(),
 }));
 
 vi.mock("@/lib/tfsa/data", () => ({
@@ -44,5 +45,25 @@ describe("TransactionsPage", () => {
 
     expect(html).toContain("No matching transactions");
     expect(html).toContain("Filter transactions");
+    expect(html).toContain("Export");
+    expect(html).toContain("Import");
+    expect(html).not.toContain("Export CSV");
+    expect(html).not.toContain("Import CSV");
+    expect(html).not.toContain("Use a transactions CSV exported from this app.");
+  });
+
+  it("renders import success feedback", async () => {
+    getTransactionsPageData.mockResolvedValue({
+      accounts: [],
+      transactions: [],
+    });
+
+    const { default: TransactionsPage } = await import("./page");
+    const view = await TransactionsPage({
+      searchParams: Promise.resolve({ imported: "2" }),
+    });
+    const html = renderToStaticMarkup(view);
+
+    expect(html).toContain("Imported 2 transactions from CSV.");
   });
 });

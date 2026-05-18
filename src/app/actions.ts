@@ -12,6 +12,7 @@ import {
   parseCurrencyInputToCents,
   parseDateInput,
 } from "@/lib/forms";
+import { parseTransactionsCsvImport } from "@/lib/tfsa/importTransactionsCsv";
 import { allowsNegativeAmount } from "@/lib/tfsa/transactionTypes";
 
 const accountSchema = z.object({
@@ -151,6 +152,71 @@ export async function deleteTransaction(formData: FormData) {
 
   revalidateAppPages();
   redirect(redirectToPath(formData, "/transactions"));
+}
+
+export async function importTransactionsCsv(formData: FormData) {
+  const file = formData.get("transactionsCsv");
+
+  if (!(file instanceof File) || file.size === 0) {
+    throw new Error("Choose a transactions CSV exported from this app.");
+  }
+
+  const rows = parseTransactionsCsvImport(await file.text());
+  const accountsById = new Map(
+    rows.map((row) => [
+      row.accountId,
+      {
+        id: row.accountId,
+        name: row.accountName,
+        institution: row.institution,
+      },
+    ]),
+  );
+
+  await db.$transaction(async (tx) => {
+    for (const account of accountsById.values()) {
+      await tx.account.upsert({
+        where: { id: account.id },
+        update: {
+          name: account.name,
+          institution: account.institution,
+        },
+        create: {
+          id: account.id,
+          name: account.name,
+          institution: account.institution,
+        },
+      });
+    }
+
+    for (const row of rows) {
+      await tx.transaction.upsert({
+        where: { id: row.transactionId },
+        update: {
+          accountId: row.accountId,
+          type: row.type,
+          amountCents: row.amountCents,
+          occurredAt: row.occurredAt,
+          notes: row.notes,
+          createdAt: row.createdAt,
+          updatedAt: row.updatedAt,
+        },
+        create: {
+          id: row.transactionId,
+          accountId: row.accountId,
+          type: row.type,
+          amountCents: row.amountCents,
+          occurredAt: row.occurredAt,
+          notes: row.notes,
+          createdAt: row.createdAt,
+          updatedAt: row.updatedAt,
+        },
+      });
+    }
+  });
+
+  revalidateAppPages();
+  redirect(`/transactions?imported=${rows.length}`);
 }
 
 export async function saveSettings(formData: FormData) {

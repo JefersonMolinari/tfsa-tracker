@@ -95,13 +95,6 @@ export function estimateTfsaContributionRoom(input: {
     .filter((transaction) => transaction.occurredAt <= asOf)
     .sort((left, right) => left.occurredAt.getTime() - right.occurredAt.getTime());
 
-  for (const transaction of transactions) {
-    assertNonNegativeInteger(
-      transaction.amountCents,
-      `${transaction.type} transaction amount`,
-    );
-  }
-
   const asOfYear = getUtcYear(asOf);
   const withdrawalsByYear = new Map<number, number>();
   const contributionsByYear = new Map<number, number>();
@@ -109,15 +102,20 @@ export function estimateTfsaContributionRoom(input: {
   for (const transaction of transactions) {
     const year = getUtcYear(transaction.occurredAt);
 
-    if (transaction.type === WITHDRAWAL_TYPE) {
-      withdrawalsByYear.set(year, (withdrawalsByYear.get(year) ?? 0) + transaction.amountCents);
-    }
-
-    if (transaction.type === CONTRIBUTION_TYPE) {
-      contributionsByYear.set(
-        year,
-        (contributionsByYear.get(year) ?? 0) + transaction.amountCents,
+    if (transaction.type === WITHDRAWAL_TYPE || transaction.type === CONTRIBUTION_TYPE) {
+      assertNonNegativeInteger(
+        transaction.amountCents,
+        `${transaction.type} transaction amount`,
       );
+
+      if (transaction.type === WITHDRAWAL_TYPE) {
+        withdrawalsByYear.set(year, (withdrawalsByYear.get(year) ?? 0) + transaction.amountCents);
+      } else {
+        contributionsByYear.set(
+          year,
+          (contributionsByYear.get(year) ?? 0) + transaction.amountCents,
+        );
+      }
     }
   }
 

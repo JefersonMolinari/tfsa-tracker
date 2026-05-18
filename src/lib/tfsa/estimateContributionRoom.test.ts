@@ -155,6 +155,48 @@ describe("estimateTfsaContributionRoom", () => {
     expect(estimate.withdrawalsThisYearCents).toBe(0);
   });
 
+  it("ignores a market loss for contribution room", () => {
+    const estimate = estimateTfsaContributionRoom({
+      asOf: "2026-09-01T00:00:00.000Z",
+      annualLimits: limits,
+      settings: {
+        startingYear: 2026,
+        startingContributionRoomCents: 0,
+      },
+      transactions: [
+        {
+          occurredAt: "2026-05-01T00:00:00.000Z",
+          type: "MARKET_ADJUSTMENT",
+          amountCents: -120000,
+        },
+      ],
+    });
+
+    expect(estimate.availableContributionRoomCents).toBe(700000);
+    expect(estimate.contributionsThisYearCents).toBe(0);
+    expect(estimate.withdrawalsThisYearCents).toBe(0);
+  });
+
+  it("rejects negative contribution-room transaction amounts", () => {
+    expect(() =>
+      estimateTfsaContributionRoom({
+        asOf: "2026-09-01T00:00:00.000Z",
+        annualLimits: limits,
+        settings: {
+          startingYear: 2026,
+          startingContributionRoomCents: 0,
+        },
+        transactions: [
+          {
+            occurredAt: "2026-05-01T00:00:00.000Z",
+            type: "CONTRIBUTION",
+            amountCents: -120000,
+          },
+        ],
+      }),
+    ).toThrow("CONTRIBUTION transaction amount must be a non-negative integer number of cents.");
+  });
+
   it("returns an over-contribution warning when a contribution exceeds available room", () => {
     const estimate = estimateTfsaContributionRoom({
       asOf: "2026-12-31T00:00:00.000Z",
