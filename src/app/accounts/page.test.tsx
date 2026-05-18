@@ -48,5 +48,7 @@ describe("AccountsPage", () => {
 
     expect(html).toContain("No accounts yet");
     expect(html).toContain("Add account");
+    expect(html).not.toContain("Create account");
+    expect(html).not.toContain("Use one account per TFSA container you want to track.");
   });
 });
