@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "vinext build",
     "start": "next start",
+    "postinstall": "prisma generate",
     "lint": "eslint",
     "test": "vitest run",
     "test:worker": "vitest --config vitest.worker.config.ts run",

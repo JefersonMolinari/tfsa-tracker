@@ -2,9 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { TransactionType, type Prisma } from "@prisma/client";
 import { z } from "zod";
 
+import { TransactionType, type Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import {
   getOptionalString,

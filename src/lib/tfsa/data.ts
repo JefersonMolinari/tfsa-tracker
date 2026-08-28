@@ -1,5 +1,4 @@
-import type { Prisma, UserSettings } from "@prisma/client";
-
+import type { Prisma, UserSettings } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 
 export const defaultSettings = (year = new Date().getUTCFullYear()) =>

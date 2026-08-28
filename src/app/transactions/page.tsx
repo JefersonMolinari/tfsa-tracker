@@ -1,4 +1,4 @@
-import type { TransactionType } from "@prisma/client";
+import type { TransactionType } from "@/generated/prisma/client";
 
 import Link from "next/link";
 

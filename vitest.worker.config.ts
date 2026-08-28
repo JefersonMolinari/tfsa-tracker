@@ -1,7 +1,15 @@
+import { fileURLToPath } from "node:url";
+
 import { cloudflareTest, readD1Migrations } from "@cloudflare/vitest-plugin";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      "@/lib/db": fileURLToPath(new URL("./src/lib/db.worker.ts", import.meta.url)),
+      "@": fileURLToPath(new URL("./src", import.meta.url)),
+    },
+  },
   plugins: [
     cloudflareTest(async () => ({
       main: "./test/worker-entry.ts",
