@@ -3,6 +3,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const revalidatePath = vi.fn();
 const redirect = vi.fn();
 const importTransactionsCsvRows = vi.fn();
+const backupActionCalls: string[] = [];
+const importTfsaBackup = vi.fn(async () => {
+  backupActionCalls.push("persist");
+});
+const requireSession = vi.fn(async () => {
+  backupActionCalls.push("session");
+  return { exp: 1_800_000_000 };
+});
 const db = {
   account: {
     create: vi.fn(),
@@ -35,12 +43,59 @@ vi.mock("@/lib/db", () => ({
 }));
 
 vi.mock("@/lib/auth/session", () => ({
-  requireSession: vi.fn().mockResolvedValue({ exp: 1_800_000_000 }),
+  requireSession,
 }));
 
 vi.mock("@/lib/tfsa/importPersistence", () => ({
   importTransactionsCsvRows,
 }));
+
+vi.mock("@/lib/tfsa/backupPersistence", () => ({ importTfsaBackup }));
+
+const validBackup = {
+  version: 1,
+  settings: {
+    id: 1,
+    startingYear: 2024,
+    startingContributionRoomCents: 950_000,
+    contributionRoomNotes: "Imported settings",
+    createdAt: "2026-02-01T00:00:00.000Z",
+    updatedAt: "2026-02-02T00:00:00.000Z",
+  },
+  accounts: [
+    {
+      id: "acct_1",
+      name: "Main TFSA",
+      institution: "Local Bank",
+      notes: null,
+      createdAt: "2026-02-03T00:00:00.000Z",
+      updatedAt: "2026-02-04T00:00:00.000Z",
+    },
+  ],
+  transactions: [
+    {
+      id: "txn_1",
+      accountId: "acct_1",
+      type: "CONTRIBUTION",
+      amountCents: 250_000,
+      occurredAt: "2026-02-05T00:00:00.000Z",
+      notes: "Imported transaction",
+      createdAt: "2026-02-06T00:00:00.000Z",
+      updatedAt: "2026-02-07T00:00:00.000Z",
+    },
+  ],
+} as const;
+
+function backupFormData(contents: unknown = validBackup) {
+  const formData = new FormData();
+  formData.set(
+    "backupFile",
+    new File([JSON.stringify(contents)], "tfsa-full-backup-2026-05-09.json", {
+      type: "application/json",
+    }),
+  );
+  return formData;
+}
 
 describe("transaction actions", () => {
   beforeEach(() => {
@@ -170,6 +225,7 @@ describe("transaction actions", () => {
 describe("account actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    backupActionCalls.length = 0;
   });
 
   it("redirects account updates back to /accounts", async () => {
@@ -206,5 +262,54 @@ describe("account actions", () => {
     });
     expect(redirect).toHaveBeenCalledWith("/accounts");
     expect(revalidatePath).toHaveBeenCalledWith("/accounts");
+  });
+});
+
+describe("full-backup import action", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    backupActionCalls.length = 0;
+  });
+
+  it("validates the selected backup, persists it once, then refreshes and redirects", async () => {
+    const { importTfsaBackupAction } = await import("./actions");
+
+    await importTfsaBackupAction(backupFormData());
+
+    expect(requireSession).toHaveBeenCalledTimes(1);
+    expect(backupActionCalls).toEqual(["session", "persist"]);
+    expect(importTfsaBackup).toHaveBeenCalledTimes(1);
+    expect(importTfsaBackup).toHaveBeenCalledWith(validBackup);
+    expect(revalidatePath.mock.calls).toEqual([
+      ["/"],
+      ["/accounts"],
+      ["/transactions"],
+      ["/settings"],
+    ]);
+    expect(redirect).toHaveBeenCalledWith("/settings?backupImported=1");
+  });
+
+  it("rejects an invalid backup before persistence, revalidation, or redirect", async () => {
+    const { importTfsaBackupAction } = await import("./actions");
+
+    await expect(
+      importTfsaBackupAction(backupFormData({ ...validBackup, version: 2 })),
+    ).rejects.toThrow();
+
+    expect(importTfsaBackup).not.toHaveBeenCalled();
+    expect(revalidatePath).not.toHaveBeenCalled();
+    expect(redirect).not.toHaveBeenCalled();
+  });
+
+  it("does not revalidate or redirect when atomic persistence fails", async () => {
+    importTfsaBackup.mockRejectedValueOnce(new Error("Restore failed"));
+    const { importTfsaBackupAction } = await import("./actions");
+
+    await expect(importTfsaBackupAction(backupFormData())).rejects.toThrow(
+      "Restore failed",
+    );
+
+    expect(revalidatePath).not.toHaveBeenCalled();
+    expect(redirect).not.toHaveBeenCalled();
   });
 });

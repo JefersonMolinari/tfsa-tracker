@@ -13,6 +13,8 @@ import {
   parseCurrencyInputToCents,
   parseDateInput,
 } from "@/lib/forms";
+import { parseTfsaBackup } from "@/lib/tfsa/backup";
+import { importTfsaBackup } from "@/lib/tfsa/backupPersistence";
 import { importTransactionsCsvRows } from "@/lib/tfsa/importPersistence";
 import { parseTransactionsCsvImport } from "@/lib/tfsa/importTransactionsCsv";
 import { allowsNegativeAmount } from "@/lib/tfsa/transactionTypes";
@@ -175,6 +177,21 @@ export async function importTransactionsCsv(formData: FormData) {
 
   revalidateAppPages();
   redirect(`/transactions?imported=${rows.length}`);
+}
+
+export async function importTfsaBackupAction(formData: FormData) {
+  await requireSession();
+  const file = formData.get("backupFile");
+
+  if (!(file instanceof File) || file.size === 0) {
+    throw new Error("Choose a full-backup JSON file exported from this app.");
+  }
+
+  const backup = parseTfsaBackup(await file.text());
+  await importTfsaBackup(backup);
+
+  revalidateAppPages();
+  redirect("/settings?backupImported=1");
 }
 
 export async function saveSettings(formData: FormData) {

@@ -90,3 +90,19 @@ export async function getTransactionsCsvExportData() {
     ],
   });
 }
+
+export async function getFullBackupData() {
+  const [settings, accounts, transactions] = await Promise.all([
+    db.userSettings.findUnique({
+      where: { id: 1 },
+    }),
+    db.account.findMany({
+      orderBy: { id: "asc" },
+    }),
+    db.transaction.findMany({
+      orderBy: { id: "asc" },
+    }),
+  ]);
+
+  return { settings, accounts, transactions };
+}

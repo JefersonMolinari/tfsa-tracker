@@ -19,6 +19,7 @@
       }
     ],
     "paths": {
+      "@/lib/tfsa/backupPersistence": ["./src/lib/tfsa/backupPersistence.local.ts"],
       "@/lib/tfsa/importPersistence": ["./src/lib/tfsa/importPersistence.local.ts"],
       "@/lib/auth/runtime": ["./src/lib/auth/runtime.local.ts"],
       "@/*": ["./src/*"]

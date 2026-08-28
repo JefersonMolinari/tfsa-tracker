@@ -12,10 +12,14 @@ const workerAuthRuntimePath = fileURLToPath(
 const workerImportPersistencePath = fileURLToPath(
   new URL("./src/lib/tfsa/importPersistence.worker.ts", import.meta.url),
 );
+const workerBackupPersistencePath = fileURLToPath(
+  new URL("./src/lib/tfsa/backupPersistence.worker.ts", import.meta.url),
+);
 
 export default defineConfig({
   resolve: {
     alias: {
+      "@/lib/tfsa/backupPersistence": workerBackupPersistencePath,
       "@/lib/tfsa/importPersistence": workerImportPersistencePath,
       "@/lib/db": workerDatabasePath,
       "@/lib/auth/runtime": workerAuthRuntimePath,
@@ -38,6 +42,7 @@ export default defineConfig({
         return {
           resolve: {
             alias: {
+              "@/lib/tfsa/backupPersistence": workerBackupPersistencePath,
               "@/lib/tfsa/importPersistence": workerImportPersistencePath,
               "@/lib/db": workerDatabasePath,
               "@/lib/auth/runtime": workerAuthRuntimePath,

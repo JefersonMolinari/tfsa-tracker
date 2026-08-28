@@ -35,6 +35,8 @@ const db = {
 const getAppData = vi.fn();
 const getTransactionsPageData = vi.fn();
 const getTransactionsCsvExportData = vi.fn();
+const getFullBackupData = vi.fn();
+const importTfsaBackup = vi.fn();
 
 vi.mock("next/headers", () => ({ cookies }));
 vi.mock("next/navigation", () => ({ redirect }));
@@ -42,9 +44,11 @@ vi.mock("next/cache", () => ({ revalidatePath }));
 vi.mock("@/lib/db", () => ({ db }));
 vi.mock("@/lib/tfsa/data", () => ({
   getAppData,
+  getFullBackupData,
   getTransactionsPageData,
   getTransactionsCsvExportData,
 }));
+vi.mock("@/lib/tfsa/backupPersistence", () => ({ importTfsaBackup }));
 
 const secrets = {
   password: crypto.randomUUID(),
@@ -62,6 +66,8 @@ function expectNoDataAccess() {
   expect(getAppData).not.toHaveBeenCalled();
   expect(getTransactionsPageData).not.toHaveBeenCalled();
   expect(getTransactionsCsvExportData).not.toHaveBeenCalled();
+  expect(getFullBackupData).not.toHaveBeenCalled();
+  expect(importTfsaBackup).not.toHaveBeenCalled();
   expect(db.account.create).not.toHaveBeenCalled();
   expect(db.account.update).not.toHaveBeenCalled();
   expect(db.account.delete).not.toHaveBeenCalled();
@@ -80,6 +86,7 @@ describe("direct server action guards", () => {
     "createTransaction",
     "updateTransaction",
     "deleteTransaction",
+    "importTfsaBackupAction",
     "importTransactionsCsv",
     "saveSettings",
   ] as const)("blocks %s before parsing or writing without a session", async (name) => {
@@ -108,6 +115,13 @@ describe("direct server action guards", () => {
 describe("direct export guard", () => {
   it("blocks a missing session before reading export data", async () => {
     const { GET } = await import("./transactions/export/route");
+
+    await expect(GET()).rejects.toThrow("NEXT_REDIRECT:/login");
+    expectNoDataAccess();
+  });
+
+  it("blocks a missing session before reading full-backup data", async () => {
+    const { GET } = await import("./backup/export/route");
 
     await expect(GET()).rejects.toThrow("NEXT_REDIRECT:/login");
     expectNoDataAccess();
