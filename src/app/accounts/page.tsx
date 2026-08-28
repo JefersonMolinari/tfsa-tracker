@@ -2,10 +2,14 @@ import { createAccount, deleteAccount, updateAccount } from "@/app/actions";
 import { AccountsAddAccountModal } from "@/app/accounts/AccountsAddAccountModal";
 import { AccountsTable } from "@/app/accounts/AccountsTable";
 import { Card, EmptyState, PageIntro, SectionTitle } from "@/components/ui";
+import { requireSession } from "@/lib/auth/session";
 import { getAppData } from "@/lib/tfsa/data";
 import { calculateAccountBalances } from "@/lib/tfsa/dashboard";
 
+export const dynamic = "force-dynamic";
+
 export default async function AccountsPage() {
+  await requireSession();
   const { accounts, transactions } = await getAppData();
   const balances = calculateAccountBalances(transactions);
 

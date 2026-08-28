@@ -33,6 +33,10 @@ vi.mock("@/lib/db", () => ({
   db,
 }));
 
+vi.mock("@/lib/auth/session", () => ({
+  requireSession: vi.fn().mockResolvedValue({ exp: 1_800_000_000 }),
+}));
+
 describe("transaction actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();

@@ -20,9 +20,12 @@ import {
   SelectField,
 } from "@/components/ui";
 import { formatCents } from "@/lib/format";
+import { requireSession } from "@/lib/auth/session";
 import { getTransactionsPageData } from "@/lib/tfsa/data";
 import { buildTransactionSubtotals } from "@/lib/tfsa/transactionSubtotals";
 import { transactionTypeLabels, transactionTypes } from "@/lib/tfsa/transactionTypes";
+
+export const dynamic = "force-dynamic";
 
 type SearchParams = Promise<{
   accountId?: string;
@@ -69,6 +72,7 @@ export default async function TransactionsPage({
 }: {
   searchParams: SearchParams;
 }) {
+  await requireSession();
   const filters = await searchParams;
   const accountId = filters.accountId || undefined;
   const importedCount = filters.imported ? Number(filters.imported) : undefined;

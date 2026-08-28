@@ -2,11 +2,23 @@ import type { ReactNode } from "react";
 
 import Link from "next/link";
 
+import { logout } from "@/app/login/actions";
+
 export function AppShell({
   children,
+  authenticated,
 }: Readonly<{
   children: ReactNode;
+  authenticated: boolean;
 }>) {
+  if (!authenticated) {
+    return (
+      <div className="flex min-h-screen items-center bg-[linear-gradient(180deg,#f5fbf5_0%,#eef5ef_45%,#f7f8f4_100%)] px-5 py-10 text-slate-900 sm:px-8">
+        <main className="w-full">{children}</main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#f5fbf5_0%,#eef5ef_45%,#f7f8f4_100%)] text-slate-900">
       <div className="mx-auto flex min-h-screen max-w-6xl flex-col px-5 py-6 sm:px-8">
@@ -26,12 +38,22 @@ export function AppShell({
                 </p>
               </div>
             </div>
-            <nav className="flex flex-wrap gap-2">
-              <NavLink href="/">Dashboard</NavLink>
-              <NavLink href="/accounts">Accounts</NavLink>
-              <NavLink href="/transactions">Transactions</NavLink>
-              <NavLink href="/settings">Settings</NavLink>
-            </nav>
+            <div className="flex flex-wrap items-center gap-2">
+              <nav className="flex flex-wrap gap-2">
+                <NavLink href="/">Dashboard</NavLink>
+                <NavLink href="/accounts">Accounts</NavLink>
+                <NavLink href="/transactions">Transactions</NavLink>
+                <NavLink href="/settings">Settings</NavLink>
+              </nav>
+              <form action={logout}>
+                <button
+                  className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                  type="submit"
+                >
+                  Logout
+                </button>
+              </form>
+            </div>
           </div>
         </header>
         <main className="flex-1 py-8">{children}</main>

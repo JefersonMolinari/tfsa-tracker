@@ -19,6 +19,7 @@
       }
     ],
     "paths": {
+      "@/lib/auth/runtime": ["./src/lib/auth/runtime.local.ts"],
       "@/*": ["./src/*"]
     }
   },

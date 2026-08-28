@@ -6,11 +6,15 @@ import { cloudflare } from "@cloudflare/vite-plugin";
 import { cdnAdapter } from "@vinext/cloudflare/cache/cdn-adapter";
 
 const workerDatabasePath = fileURLToPath(new URL("./src/lib/db.worker.ts", import.meta.url));
+const workerAuthRuntimePath = fileURLToPath(
+  new URL("./src/lib/auth/runtime.worker.ts", import.meta.url),
+);
 
 export default defineConfig({
   resolve: {
     alias: {
       "@/lib/db": workerDatabasePath,
+      "@/lib/auth/runtime": workerAuthRuntimePath,
     },
   },
   plugins: [
@@ -26,11 +30,12 @@ export default defineConfig({
     {
       name: "tfsa-worker-runtime",
       config() {
-        // vinext prepends its broad `@` alias, so reassert the exact database alias afterward.
+        // vinext prepends its broad `@` alias, so reassert exact runtime aliases afterward.
         return {
           resolve: {
             alias: {
               "@/lib/db": workerDatabasePath,
+              "@/lib/auth/runtime": workerAuthRuntimePath,
             },
           },
         };

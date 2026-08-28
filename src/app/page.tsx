@@ -2,8 +2,11 @@ import { createTransaction } from "@/app/actions";
 import { DashboardAddTransactionModal } from "@/app/DashboardAddTransactionModal";
 import { Card, EmptyState, PageIntro } from "@/components/ui";
 import { formatCents } from "@/lib/format";
+import { requireSession } from "@/lib/auth/session";
 import { getAppData } from "@/lib/tfsa/data";
 import { buildDashboardSummary } from "@/lib/tfsa/dashboard";
+
+export const dynamic = "force-dynamic";
 
 function WarningBanner({
   warningLevel,
@@ -66,6 +69,7 @@ function StatCard({
 }
 
 export default async function Home() {
+  await requireSession();
   const { accounts, annualLimits, settings, transactions } = await getAppData();
 
   const summary = buildDashboardSummary({

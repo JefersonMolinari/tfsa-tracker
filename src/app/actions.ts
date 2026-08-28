@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import { TransactionType, type Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
+import { requireSession } from "@/lib/auth/session";
 import {
   getOptionalString,
   getString,
@@ -47,6 +48,7 @@ function redirectToPath(formData: FormData, fallbackPath: string) {
 }
 
 export async function createAccount(formData: FormData) {
+  await requireSession();
   const parsed = accountSchema.parse({
     name: getString(formData, "name"),
     institution: getString(formData, "institution"),
@@ -66,6 +68,7 @@ export async function createAccount(formData: FormData) {
 }
 
 export async function updateAccount(formData: FormData) {
+  await requireSession();
   const accountId = getString(formData, "accountId");
   const parsed = accountSchema.parse({
     name: getString(formData, "name"),
@@ -87,6 +90,7 @@ export async function updateAccount(formData: FormData) {
 }
 
 export async function deleteAccount(formData: FormData) {
+  await requireSession();
   const accountId = getString(formData, "accountId");
 
   await db.account.delete({
@@ -120,6 +124,7 @@ function getTransactionInput(formData: FormData): Prisma.TransactionUncheckedCre
 }
 
 export async function createTransaction(formData: FormData) {
+  await requireSession();
   const input = getTransactionInput(formData);
 
   await db.transaction.create({
@@ -131,6 +136,7 @@ export async function createTransaction(formData: FormData) {
 }
 
 export async function updateTransaction(formData: FormData) {
+  await requireSession();
   const transactionId = getString(formData, "transactionId");
   const input = getTransactionInput(formData);
 
@@ -144,6 +150,7 @@ export async function updateTransaction(formData: FormData) {
 }
 
 export async function deleteTransaction(formData: FormData) {
+  await requireSession();
   const transactionId = getString(formData, "transactionId");
 
   await db.transaction.delete({
@@ -155,6 +162,7 @@ export async function deleteTransaction(formData: FormData) {
 }
 
 export async function importTransactionsCsv(formData: FormData) {
+  await requireSession();
   const file = formData.get("transactionsCsv");
 
   if (!(file instanceof File) || file.size === 0) {
@@ -220,6 +228,7 @@ export async function importTransactionsCsv(formData: FormData) {
 }
 
 export async function saveSettings(formData: FormData) {
+  await requireSession();
   const parsed = settingsSchema.parse({
     startingYear: getString(formData, "startingYear"),
     startingContributionRoom: getString(formData, "startingContributionRoom"),
