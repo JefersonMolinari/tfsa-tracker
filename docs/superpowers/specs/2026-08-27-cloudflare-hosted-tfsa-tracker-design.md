@@ -57,7 +57,7 @@ The application has a single password login screen and logout action.
 
 ## Existing-data migration
 
-The existing transaction CSV exchange is retained. A separate full-backup format is added for the migration because the CSV does not cover every setting needed to restore the application.
+The existing transaction CSV exchange is retained. A separate full-backup format is added for the migration because the CSV does not cover every setting needed to restore the application. Both import paths use a D1-native import helper rather than Prisma transactions: Prisma's D1 adapter does not provide transactional guarantees.
 
 ### Backup format
 
@@ -74,8 +74,11 @@ Annual limits are not user data and are restored by the D1 seed rather than by t
 - The local app offers an authenticated download of the JSON backup.
 - The hosted app offers the protected import control after deployment.
 - Import validates the complete JSON structure and schema version before any database write.
+- A backup is limited to 5 MiB, 2,000 accounts, and 10,000 transactions. Larger backups are rejected before any database statement is prepared; the initial single-user migration is therefore guaranteed to fit in one D1 batch.
+- The Worker-only D1 import helper builds parameterized `INSERT ... ON CONFLICT DO UPDATE` statements in dependency order (settings, accounts, then transactions) and sends the full list through one `DB.batch()` call. D1 guarantees that a failed statement aborts and rolls back the complete batch.
+- The existing CSV import uses the same helper and one `DB.batch()` call. It does not call Prisma's `$transaction` in production.
 - Account and transaction records are upserted by their existing IDs; settings are upserted by ID. Re-importing the same backup is therefore safe and does not duplicate data.
-- The import executes as one database transaction. An invalid file or failed write leaves the existing D1 data unchanged.
+- An invalid file, limit breach, or failed D1 batch leaves the existing D1 data unchanged.
 - The user exports their backup locally before their first hosted import. The old local database remains untouched as a fallback copy.
 
 ## Deployment
@@ -98,7 +101,7 @@ The workflow uses Cloudflare credentials stored as GitHub repository secrets. Th
 - Expired or missing sessions redirect to login.
 - Validation failures retain submitted form values and show actionable field errors.
 - Data read or write failures produce a clear retry message without falsely reporting success.
-- Import failures identify malformed or unsupported backups without partially importing records.
+- Import failures identify malformed or unsupported backups without partially importing records; the UI reports success only after the D1 batch completes.
 - A failed deployment leaves the last successfully deployed Worker version serving production traffic.
 
 ## Tests and acceptance checks
@@ -109,7 +112,8 @@ Existing unit and component tests continue to run. New coverage will verify:
 - protected pages, server actions, export routes, and import routes reject unauthenticated access;
 - successful login, session expiry, and logout behavior;
 - existing account, transaction, settings, CSV import/export, and TFSA calculation behavior against D1;
-- full backup validation, complete restore, failed-import rollback, and idempotent retry;
+- full-backup and CSV validation, complete restore, bounded-input rejection, failed-D1-batch rollback, and idempotent retry;
+- an injected failing statement in a local Worker/D1 batch and verification that no account, transaction, or setting was changed;
 - the D1 migration and annual-limit seed against a local Worker/D1 test environment;
 - a production smoke test at `https://tfsa.molinaristudios.com` covering login, dashboard load, one write, and a read-back.
 
