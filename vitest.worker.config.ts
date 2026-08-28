@@ -6,6 +6,9 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   resolve: {
     alias: {
+      "@/lib/tfsa/importPersistence": fileURLToPath(
+        new URL("./src/lib/tfsa/importPersistence.worker.ts", import.meta.url),
+      ),
       "@/lib/auth/runtime": fileURLToPath(
         new URL("./src/lib/auth/runtime.worker.ts", import.meta.url),
       ),

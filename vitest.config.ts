@@ -6,10 +6,15 @@ const localAuthRuntimePath = path.resolve(
   import.meta.dirname,
   "src/lib/auth/runtime.local.ts",
 );
+const localImportPersistencePath = path.resolve(
+  import.meta.dirname,
+  "src/lib/tfsa/importPersistence.local.ts",
+);
 
 export default defineConfig({
   resolve: {
     alias: {
+      "@/lib/tfsa/importPersistence": localImportPersistencePath,
       "@/lib/auth/runtime": localAuthRuntimePath,
       "@": path.resolve(import.meta.dirname, "src"),
     },

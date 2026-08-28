@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const revalidatePath = vi.fn();
 const redirect = vi.fn();
+const importTransactionsCsvRows = vi.fn();
 const db = {
   account: {
     create: vi.fn(),
@@ -35,6 +36,10 @@ vi.mock("@/lib/db", () => ({
 
 vi.mock("@/lib/auth/session", () => ({
   requireSession: vi.fn().mockResolvedValue({ exp: 1_800_000_000 }),
+}));
+
+vi.mock("@/lib/tfsa/importPersistence", () => ({
+  importTransactionsCsvRows,
 }));
 
 describe("transaction actions", () => {
@@ -127,36 +132,38 @@ describe("transaction actions", () => {
 
     await importTransactionsCsv(formData);
 
-    expect(db.$transaction).toHaveBeenCalledTimes(1);
-    expect(db.account.upsert).toHaveBeenCalledWith({
-      where: { id: "acct_1" },
-      update: {
-        name: "Main TFSA",
-        institution: "Local Bank",
-      },
-      create: {
-        id: "acct_1",
-        name: "Main TFSA",
-        institution: "Local Bank",
-      },
-    });
-    expect(db.transaction.upsert).toHaveBeenCalledWith({
-      where: { id: "txn_1" },
-      update: expect.objectContaining({
+    expect(importTransactionsCsvRows).toHaveBeenCalledWith([
+      expect.objectContaining({
+        transactionId: "txn_1",
         accountId: "acct_1",
         amountCents: 250000,
         notes: "Imported",
         type: "CONTRIBUTION",
       }),
-      create: expect.objectContaining({
-        id: "txn_1",
-        accountId: "acct_1",
-        amountCents: 250000,
-        notes: "Imported",
-        type: "CONTRIBUTION",
-      }),
-    });
+    ]);
     expect(redirect).toHaveBeenCalledWith("/transactions?imported=1");
+  });
+
+  it("does not revalidate or redirect when CSV persistence fails", async () => {
+    importTransactionsCsvRows.mockRejectedValueOnce(new Error("Import failed"));
+    const { importTransactionsCsv } = await import("./actions");
+    const formData = new FormData();
+    formData.set(
+      "transactionsCsv",
+      new File(
+        [
+          "transaction_id,account_id,account_name,institution,transaction_type,amount_cents,amount_cad,occurred_at,notes,created_at,updated_at\r\n" +
+            "txn_1,acct_1,Main TFSA,Local Bank,CONTRIBUTION,250000,0.01,2026-02-01T00:00:00.000Z,Imported,2026-02-01T01:00:00.000Z,2026-02-01T02:00:00.000Z\r\n",
+        ],
+        "tfsa-transactions.csv",
+        { type: "text/csv" },
+      ),
+    );
+
+    await expect(importTransactionsCsv(formData)).rejects.toThrow("Import failed");
+
+    expect(revalidatePath).not.toHaveBeenCalled();
+    expect(redirect).not.toHaveBeenCalled();
   });
 });
 
