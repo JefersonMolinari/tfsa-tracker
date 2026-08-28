@@ -4,38 +4,57 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "vinext build",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
+    "test:worker": "vitest --config vitest.worker.config.ts run",
+    "dev:worker": "vinext dev --port 3001",
+    "deploy": "wrangler deploy",
+    "cf:types": "wrangler types src/worker-configuration.d.ts",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:push": "node scripts/prisma-db-push.mjs",
     "db:seed": "prisma db seed",
     "db:setup": "npm run db:generate && npm run db:migrate && npm run db:seed",
-    "db:reset": "prisma migrate reset"
+    "db:reset": "prisma migrate reset",
+    "dev:vinext": "vinext dev --port 3001",
+    "build:vinext": "vinext build",
+    "start:vinext": "wrangler dev --config dist/server/wrangler.json",
+    "deploy:vinext": "vinext-cloudflare deploy --config dist/server/wrangler.json"
   },
   "dependencies": {
     "@prisma/adapter-better-sqlite3": "^7.8.0",
+    "@prisma/adapter-d1": "^7.10.0",
     "@prisma/client": "^7.8.0",
+    "@vinext/cloudflare": "^1.0.0-beta.6",
     "better-sqlite3": "^12.9.0",
     "date-fns": "^4.1.0",
     "next": "16.2.5",
     "prisma": "^7.8.0",
-    "react": "19.2.4",
-    "react-dom": "19.2.4",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-server-dom-webpack": "^19.2.8",
     "recharts": "^3.8.1",
+    "vinext": "^1.0.0-beta.8",
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.54.1",
+    "@cloudflare/vitest-plugin": "^1.1.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^6.1.0",
+    "@vitejs/plugin-rsc": "^0.5.34",
     "eslint": "^9",
     "eslint-config-next": "16.2.5",
     "tailwindcss": "^4",
     "typescript": "^5",
-    "vitest": "^4.1.5"
-  }
+    "vite": "^8.2.2",
+    "vitest": "^4.1.5",
+    "wrangler": "^4.127.0"
+  },
+  "type": "module"
 }
