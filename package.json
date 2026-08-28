@@ -9,6 +9,8 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:worker": "vitest --config vitest.worker.config.ts run",
+    "d1:migrate:local": "wrangler d1 migrations apply tfsa-tracker --local",
+    "d1:migrate:remote": "wrangler d1 migrations apply tfsa-tracker --remote",
     "dev:worker": "vinext dev --port 3001",
     "deploy": "wrangler deploy",
     "cf:types": "wrangler types src/worker-configuration.d.ts",

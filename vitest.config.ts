@@ -8,4 +8,7 @@ export default defineConfig({
       "@": path.resolve(import.meta.dirname, "src"),
     },
   },
+  test: {
+    include: ["src/**/*.test.{ts,tsx}"],
+  },
 });
