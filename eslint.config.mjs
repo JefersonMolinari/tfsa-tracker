@@ -13,6 +13,7 @@ const eslintConfig = defineConfig([
     "build/**",
     "dist/**",
     "next-env.d.ts",
+    "src/generated/prisma-local/**",
     "src/worker-configuration.d.ts",
   ]),
 ]);

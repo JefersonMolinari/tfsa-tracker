@@ -2,8 +2,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
-import { PrismaClient } from "@prisma/client";
+import localPrismaClient from "../src/generated/prisma-local/index.js";
 import annualLimits from "./tfsa-annual-limits.json" with { type: "json" };
+
+const { PrismaClient } = localPrismaClient;
 
 const prismaDirectory = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(prismaDirectory, "..");

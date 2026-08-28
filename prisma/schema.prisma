@@ -4,6 +4,11 @@ generator client {
   runtime  = "cloudflare"
 }
 
+generator localClient {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma-local"
+}
+
 datasource db {
   provider = "sqlite"
 }
