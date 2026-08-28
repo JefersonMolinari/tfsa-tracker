@@ -13,5 +13,8 @@ export default defineConfig({
       },
     })),
   ],
-  test: { setupFiles: ["./test/worker.setup.ts"] },
+  test: {
+    include: ["test/**/*.test.{ts,tsx}", "src/**/*.worker.test.{ts,tsx}"],
+    setupFiles: ["./test/worker.setup.ts"],
+  },
 });
