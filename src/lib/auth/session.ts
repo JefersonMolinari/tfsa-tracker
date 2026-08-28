@@ -40,7 +40,11 @@ function decodeBase64Url(value: string) {
 
   try {
     const binary = atob(`${value.replaceAll("-", "+").replaceAll("_", "/")}${padding}`);
-    return Uint8Array.from(binary, (character) => character.charCodeAt(0));
+    const decoded = Uint8Array.from(binary, (character) =>
+      character.charCodeAt(0),
+    );
+
+    return encodeBase64Url(decoded) === value ? decoded : null;
   } catch {
     return null;
   }

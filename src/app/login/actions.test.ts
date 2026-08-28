@@ -28,9 +28,13 @@ vi.mock("next/headers", () => ({ cookies }));
 vi.mock("next/navigation", () => ({ redirect }));
 
 const secrets = {
-  password: "test-password-not-a-secret",
-  sessionSecret: "test-session-signing-key-not-a-secret",
+  password: crypto.randomUUID(),
+  sessionSecret: crypto.randomUUID(),
 };
+
+function replaceFirstCharacter(value: string) {
+  return `${value[0] === "A" ? "B" : "A"}${value.slice(1)}`;
+}
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -66,7 +70,7 @@ describe("login", () => {
   it("uses one generic redirect and does not set a cookie for invalid credentials", async () => {
     const { login } = await import("./actions");
     const formData = new FormData();
-    formData.set("password", "test-password-not-a-secreu");
+    formData.set("password", replaceFirstCharacter(secrets.password));
 
     await expect(login(formData)).rejects.toThrow(
       "NEXT_REDIRECT:/login?error=invalid",
@@ -79,7 +83,7 @@ describe("login", () => {
 
 describe("logout", () => {
   it("clears the session cookie and redirects to login", async () => {
-    cookieValues.set(SESSION_COOKIE_NAME, "existing-session");
+    cookieValues.set(SESSION_COOKIE_NAME, crypto.randomUUID());
     const { logout } = await import("./actions");
 
     await expect(logout()).rejects.toThrow("NEXT_REDIRECT:/login");

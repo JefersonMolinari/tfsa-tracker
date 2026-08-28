@@ -19,8 +19,8 @@ export default defineConfig({
       wrangler: { configPath: "./wrangler.jsonc" },
       miniflare: {
         bindings: {
-          TFSA_PASSWORD: "test-password-not-a-secret",
-          TFSA_SESSION_SECRET: "test-session-signing-key-not-a-secret",
+          TFSA_PASSWORD: crypto.randomUUID(),
+          TFSA_SESSION_SECRET: crypto.randomUUID(),
           TEST_MIGRATIONS: await readD1Migrations("./prisma/d1-migrations"),
         },
       },

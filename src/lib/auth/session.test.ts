@@ -7,16 +7,38 @@ import {
   type AuthSecrets,
 } from "./session";
 
-const secrets: AuthSecrets = {
-  password: "test-password-not-a-secret",
-  sessionSecret: "test-session-signing-key-not-a-secret",
-};
-
 const issuedAt = new Date("2026-08-27T12:00:00.000Z");
+const base64UrlAlphabet =
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 
 function replaceFirstCharacter(value: string) {
   return `${value[0] === "A" ? "B" : "A"}${value.slice(1)}`;
 }
+
+function decodeBase64UrlForTest(value: string) {
+  const padding = "=".repeat((4 - (value.length % 4)) % 4);
+  return atob(
+    `${value.replaceAll("-", "+").replaceAll("_", "/")}${padding}`,
+  );
+}
+
+function mutateUnusedSignatureBits(value: string) {
+  const finalCharacter = value.at(-1);
+  const finalIndex = finalCharacter
+    ? base64UrlAlphabet.indexOf(finalCharacter)
+    : -1;
+
+  if (finalIndex < 0 || (finalIndex & 0b11) !== 0) {
+    throw new Error("Expected a canonical SHA-256 base64url signature");
+  }
+
+  return `${value.slice(0, -1)}${base64UrlAlphabet[finalIndex | 0b01]}`;
+}
+
+const secrets: AuthSecrets = {
+  password: crypto.randomUUID(),
+  sessionSecret: crypto.randomUUID(),
+};
 
 describe("password verification", () => {
   it("accepts the configured password", async () => {
@@ -25,7 +47,7 @@ describe("password verification", () => {
 
   it("rejects a password with a one-byte difference", async () => {
     await expect(
-      verifyPassword("test-password-not-a-secreu", secrets),
+      verifyPassword(replaceFirstCharacter(secrets.password), secrets),
     ).resolves.toBe(false);
   });
 });
@@ -64,6 +86,24 @@ describe("signed sessions", () => {
     await expect(
       readSession(
         `${payload}.${replaceFirstCharacter(signature)}`,
+        secrets,
+        new Date("2026-08-27T12:00:01.000Z"),
+      ),
+    ).resolves.toBeNull();
+  });
+
+  it("rejects a non-canonical signature encoding with identical bytes", async () => {
+    const cookieValue = await createSessionCookie(secrets, issuedAt);
+    const [payload, signature] = cookieValue.split(".");
+    const nonCanonicalSignature = mutateUnusedSignatureBits(signature);
+
+    expect(nonCanonicalSignature).not.toBe(signature);
+    expect(decodeBase64UrlForTest(nonCanonicalSignature)).toBe(
+      decodeBase64UrlForTest(signature),
+    );
+    await expect(
+      readSession(
+        `${payload}.${nonCanonicalSignature}`,
         secrets,
         new Date("2026-08-27T12:00:01.000Z"),
       ),

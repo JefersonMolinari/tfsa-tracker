@@ -47,8 +47,8 @@ vi.mock("@/lib/tfsa/data", () => ({
 }));
 
 const secrets = {
-  password: "test-password-not-a-secret",
-  sessionSecret: "test-session-signing-key-not-a-secret",
+  password: crypto.randomUUID(),
+  sessionSecret: crypto.randomUUID(),
 };
 
 beforeEach(() => {
