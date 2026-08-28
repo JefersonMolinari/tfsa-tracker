@@ -2,15 +2,15 @@
 
 ## Purpose
 
-Build a private, local-only TFSA tracker for one person.
+Build a private, hosted TFSA tracker for one person, available at `https://tfsa.molinaristudios.com`.
 
-The app helps me estimate my available TFSA contribution room across multiple TFSA accounts.
+The app helps me estimate my available TFSA contribution room across multiple TFSA accounts. Its central storage uses Cloudflare D1 behind a Cloudflare Worker password gate.
 
 ## Product principles
 
-1. Local-first.
-2. No login.
-3. No cloud database.
+1. Private, password-gated single-user access.
+2. Centrally stored data in Cloudflare D1 behind a Cloudflare Worker.
+3. No public sharing or public user accounts.
 4. No bank connections.
 5. Manual accuracy over automation.
 6. Always label contribution room as estimated.
@@ -102,7 +102,7 @@ Use this table:
 
 ## Non-goals
 
-- No authentication.
+- No self-service registration or multi-user authentication.
 - No bank API integrations.
 - No CRA integrations.
 - No investment recommendations.

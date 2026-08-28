@@ -6,7 +6,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "TFSA Tracker",
-  description: "A local-first personal TFSA contribution room tracker.",
+  description: "A private, centrally stored TFSA contribution room tracker.",
 };
 
 export default async function RootLayout({
