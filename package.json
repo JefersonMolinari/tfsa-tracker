@@ -10,6 +10,7 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:worker": "vitest --config vitest.worker.config.ts run",
+    "docs:check": "node scripts/check-hosted-setup-docs.mjs",
     "workflow:check": "github-actionlint .github/workflows/deploy.yml",
     "d1:migrate:local": "wrangler d1 migrations apply tfsa-tracker --local",
     "d1:migrate:remote": "wrangler d1 migrations apply tfsa-tracker --remote",
@@ -55,8 +56,10 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.5",
     "github-actionlint": "^1.7.12",
+    "remark-parse": "^11.0.0",
     "tailwindcss": "^4",
     "typescript": "^5",
+    "unified": "^11.0.5",
     "vite": "^8.2.2",
     "vitest": "^4.1.5",
     "wrangler": "^4.127.0"

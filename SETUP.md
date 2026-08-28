@@ -6,17 +6,14 @@ This is a private, password-gated TFSA tracker for one person. Its hosted data i
 
 Run these commands exactly once and in this order. These are manual setup instructions, not commands to run from GitHub Actions.
 
-```sh
-npx wrangler login
-npx wrangler d1 create tfsa-tracker
-npm run cf:types
-npm run d1:migrate:remote
-npx wrangler secret put TFSA_PASSWORD
-npx wrangler secret put TFSA_SESSION_SECRET
-npm run deploy
-```
-
-The `wrangler d1 create tfsa-tracker` output contains the real D1 `database_id`. Copy that value into the existing `database_id` entry in `wrangler.jsonc`; do not invent or leave a placeholder ID for a real deployment.
+1. `npx wrangler login`
+2. `npx wrangler d1 create tfsa-tracker`
+3. **Before continuing**, copy the real `database_id` printed by the D1-create command into the existing `database_id` field in `wrangler.jsonc`. Do not leave the placeholder in place or continue to `npm run cf:types` until this is complete.
+4. `npm run cf:types`
+5. `npm run d1:migrate:remote`
+6. `npx wrangler secret put TFSA_PASSWORD`
+7. `npx wrangler secret put TFSA_SESSION_SECRET`
+8. `npm run deploy`
 
 Create a GitHub repository deployment token with only **Workers Scripts Edit**, **Workers Routes Edit**, and **D1 Edit**. Store that token as `CLOUDFLARE_API_TOKEN` and the account identifier as `CLOUDFLARE_ACCOUNT_ID` in GitHub repository secrets. These are deployment credentials, separate from `TFSA_PASSWORD` and `TFSA_SESSION_SECRET`, which must be set as Worker session secrets in Cloudflare and must never be placed in GitHub, action workflows, committed environment files, or documentation as values.
 

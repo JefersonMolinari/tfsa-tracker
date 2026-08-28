@@ -38,17 +38,14 @@ The app does not connect to CRA, banks, brokerages, or external account services
 
 Run these commands once, in this order, after reviewing the Cloudflare configuration. They are instructions only; do not run them from GitHub Actions or copy secrets into this repository.
 
-```sh
-npx wrangler login
-npx wrangler d1 create tfsa-tracker
-npm run cf:types
-npm run d1:migrate:remote
-npx wrangler secret put TFSA_PASSWORD
-npx wrangler secret put TFSA_SESSION_SECRET
-npm run deploy
-```
-
-Copy the real `database_id` from the one-time `wrangler d1 create tfsa-tracker` output into the existing `database_id` field in `wrangler.jsonc`. Do not replace it with a guessed value.
+1. `npx wrangler login`
+2. `npx wrangler d1 create tfsa-tracker`
+3. **Before continuing**, copy the real `database_id` printed by the D1-create command into the existing `database_id` field in `wrangler.jsonc`. Do not use a guessed value or continue to `npm run cf:types` until this is complete.
+4. `npm run cf:types`
+5. `npm run d1:migrate:remote`
+6. `npx wrangler secret put TFSA_PASSWORD`
+7. `npx wrangler secret put TFSA_SESSION_SECRET`
+8. `npm run deploy`
 
 For GitHub deployment automation, create a Cloudflare API token limited to **Workers Scripts Edit**, **Workers Routes Edit**, and **D1 Edit**, then add only `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` as GitHub repository secrets. `TFSA_PASSWORD` and `TFSA_SESSION_SECRET` are Worker session secrets: set them directly in Cloudflare with the commands above and never add them to GitHub, actions workflows, committed environment files, or documentation as values.
 
