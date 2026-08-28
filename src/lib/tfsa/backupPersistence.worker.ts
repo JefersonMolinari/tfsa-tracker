@@ -13,6 +13,7 @@ const accountUpsertSql =
 
 const transactionUpsertSql =
   'INSERT INTO "Transaction" ("id", "accountId", "type", "amountCents", "occurredAt", "notes", "createdAt", "updatedAt") VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT("id") DO UPDATE SET "accountId" = excluded."accountId", "type" = excluded."type", "amountCents" = excluded."amountCents", "occurredAt" = excluded."occurredAt", "notes" = excluded."notes", "createdAt" = excluded."createdAt", "updatedAt" = excluded."updatedAt"';
+const noOpSql = "SELECT 1";
 
 export async function importTfsaBackup(backup: TfsaBackupV1): Promise<void> {
   const validated = validateTfsaBackup(backup);
@@ -65,6 +66,10 @@ export async function importTfsaBackup(backup: TfsaBackupV1): Promise<void> {
           transaction.updatedAt,
         ),
     );
+  }
+
+  if (statements.length === 0) {
+    statements.push(database.prepare(noOpSql));
   }
 
   await database.batch(statements);

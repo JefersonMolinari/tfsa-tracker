@@ -145,6 +145,27 @@ describe("Worker full-backup persistence", () => {
     });
   });
 
+  it("imports a valid empty backup and leaves every user-data table empty", async () => {
+    const backup: TfsaBackupV1 = {
+      version: 1,
+      settings: null,
+      accounts: [],
+      transactions: [],
+    };
+
+    await expect(importTfsaBackup(backup)).resolves.toBeUndefined();
+
+    await expect(
+      env.DB.prepare('SELECT COUNT(*) AS "count" FROM "UserSettings"').first(),
+    ).resolves.toMatchObject({ count: 0 });
+    await expect(
+      env.DB.prepare('SELECT COUNT(*) AS "count" FROM "Account"').first(),
+    ).resolves.toMatchObject({ count: 0 });
+    await expect(
+      env.DB.prepare('SELECT COUNT(*) AS "count" FROM "Transaction"').first(),
+    ).resolves.toMatchObject({ count: 0 });
+  });
+
   it("rejects invalid structure before changing D1", async () => {
     await seedOriginalRows();
     const before = await readRows();
