@@ -4,20 +4,23 @@ import {
   validateTfsaBackup,
   type TfsaBackupV1,
 } from "./backup";
+import { toBoundedD1JsonChunks } from "./d1JsonBatch";
 
 const settingsUpsertSql =
   'INSERT INTO "UserSettings" ("id", "startingYear", "startingContributionRoomCents", "contributionRoomNotes", "createdAt", "updatedAt") VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT("id") DO UPDATE SET "startingYear" = excluded."startingYear", "startingContributionRoomCents" = excluded."startingContributionRoomCents", "contributionRoomNotes" = excluded."contributionRoomNotes", "createdAt" = excluded."createdAt", "updatedAt" = excluded."updatedAt"';
 
 const accountUpsertSql =
-  'INSERT INTO "Account" ("id", "name", "institution", "notes", "createdAt", "updatedAt") VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT("id") DO UPDATE SET "name" = excluded."name", "institution" = excluded."institution", "notes" = excluded."notes", "createdAt" = excluded."createdAt", "updatedAt" = excluded."updatedAt"';
+  'INSERT INTO "Account" ("id", "name", "institution", "notes", "createdAt", "updatedAt") SELECT json_extract(value, \'$.id\'), json_extract(value, \'$.name\'), json_extract(value, \'$.institution\'), json_extract(value, \'$.notes\'), json_extract(value, \'$.createdAt\'), json_extract(value, \'$.updatedAt\') FROM json_each(?) WHERE true ON CONFLICT("id") DO UPDATE SET "name" = excluded."name", "institution" = excluded."institution", "notes" = excluded."notes", "createdAt" = excluded."createdAt", "updatedAt" = excluded."updatedAt"';
 
 const transactionUpsertSql =
-  'INSERT INTO "Transaction" ("id", "accountId", "type", "amountCents", "occurredAt", "notes", "createdAt", "updatedAt") VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT("id") DO UPDATE SET "accountId" = excluded."accountId", "type" = excluded."type", "amountCents" = excluded."amountCents", "occurredAt" = excluded."occurredAt", "notes" = excluded."notes", "createdAt" = excluded."createdAt", "updatedAt" = excluded."updatedAt"';
+  'INSERT INTO "Transaction" ("id", "accountId", "type", "amountCents", "occurredAt", "notes", "createdAt", "updatedAt") SELECT json_extract(value, \'$.id\'), json_extract(value, \'$.accountId\'), json_extract(value, \'$.type\'), json_extract(value, \'$.amountCents\'), json_extract(value, \'$.occurredAt\'), json_extract(value, \'$.notes\'), json_extract(value, \'$.createdAt\'), json_extract(value, \'$.updatedAt\') FROM json_each(?) WHERE true ON CONFLICT("id") DO UPDATE SET "accountId" = excluded."accountId", "type" = excluded."type", "amountCents" = excluded."amountCents", "occurredAt" = excluded."occurredAt", "notes" = excluded."notes", "createdAt" = excluded."createdAt", "updatedAt" = excluded."updatedAt"';
 const noOpSql = "SELECT 1";
 
-export async function importTfsaBackup(backup: TfsaBackupV1): Promise<void> {
+export function buildTfsaBackupStatements(
+  database: D1Database,
+  backup: TfsaBackupV1,
+): D1PreparedStatement[] {
   const validated = validateTfsaBackup(backup);
-  const database = getD1Database();
   const statements: D1PreparedStatement[] = [];
 
   if (validated.settings) {
@@ -36,35 +39,17 @@ export async function importTfsaBackup(backup: TfsaBackupV1): Promise<void> {
     );
   }
 
-  for (const account of validated.accounts) {
+  for (const accountsJson of toBoundedD1JsonChunks(validated.accounts)) {
     statements.push(
-      database
-        .prepare(accountUpsertSql)
-        .bind(
-          account.id,
-          account.name,
-          account.institution,
-          account.notes,
-          account.createdAt,
-          account.updatedAt,
-        ),
+      database.prepare(accountUpsertSql).bind(accountsJson),
     );
   }
 
-  for (const transaction of validated.transactions) {
+  for (const transactionsJson of toBoundedD1JsonChunks(
+    validated.transactions,
+  )) {
     statements.push(
-      database
-        .prepare(transactionUpsertSql)
-        .bind(
-          transaction.id,
-          transaction.accountId,
-          transaction.type,
-          transaction.amountCents,
-          transaction.occurredAt,
-          transaction.notes,
-          transaction.createdAt,
-          transaction.updatedAt,
-        ),
+      database.prepare(transactionUpsertSql).bind(transactionsJson),
     );
   }
 
@@ -72,5 +57,10 @@ export async function importTfsaBackup(backup: TfsaBackupV1): Promise<void> {
     statements.push(database.prepare(noOpSql));
   }
 
-  await database.batch(statements);
+  return statements;
+}
+
+export async function importTfsaBackup(backup: TfsaBackupV1): Promise<void> {
+  const database = getD1Database();
+  await database.batch(buildTfsaBackupStatements(database, backup));
 }

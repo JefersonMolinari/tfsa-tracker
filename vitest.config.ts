@@ -14,10 +14,15 @@ const localBackupPersistencePath = path.resolve(
   import.meta.dirname,
   "src/lib/tfsa/backupPersistence.local.ts",
 );
+const localBackupDataPath = path.resolve(
+  import.meta.dirname,
+  "src/lib/tfsa/backupData.local.ts",
+);
 
 export default defineConfig({
   resolve: {
     alias: {
+      "@/lib/tfsa/backupData": localBackupDataPath,
       "@/lib/tfsa/backupPersistence": localBackupPersistencePath,
       "@/lib/tfsa/importPersistence": localImportPersistencePath,
       "@/lib/auth/runtime": localAuthRuntimePath,

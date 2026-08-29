@@ -6,6 +6,9 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   resolve: {
     alias: {
+      "@/lib/tfsa/backupData": fileURLToPath(
+        new URL("./src/lib/tfsa/backupData.worker.ts", import.meta.url),
+      ),
       "@/lib/tfsa/backupPersistence": fileURLToPath(
         new URL("./src/lib/tfsa/backupPersistence.worker.ts", import.meta.url),
       ),

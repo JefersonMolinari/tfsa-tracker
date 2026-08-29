@@ -1,6 +1,10 @@
 import { TransactionType } from "@/generated/prisma/client";
 
 import { transactionCsvHeaders } from "./exportTransactionsCsv";
+import {
+  MAX_TFSA_IMPORT_ACCOUNTS,
+  MAX_TFSA_IMPORT_TRANSACTIONS,
+} from "./importLimits";
 
 export type TransactionCsvImportRow = {
   transactionId: string;
@@ -143,6 +147,12 @@ export function parseTransactionsCsvImport(csv: string): TransactionCsvImportRow
 
   assertExpectedHeaders(headers);
 
+  if (dataRows.length > MAX_TFSA_IMPORT_TRANSACTIONS) {
+    throw new Error("CSV cannot contain more than 10,000 transactions.");
+  }
+
+  const accountIds = new Set<string>();
+
   return dataRows.map((row, index) => {
     const rowNumber = index + 2;
 
@@ -164,7 +174,7 @@ export function parseTransactionsCsvImport(csv: string): TransactionCsvImportRow
       updatedAt,
     ] = row;
 
-    return {
+    const parsedRow = {
       transactionId: parseRequiredText(transactionId, "transaction_id", rowNumber),
       accountId: parseRequiredText(accountId, "account_id", rowNumber),
       accountName: parseRequiredText(accountName, "account_name", rowNumber),
@@ -176,5 +186,12 @@ export function parseTransactionsCsvImport(csv: string): TransactionCsvImportRow
       createdAt: parseIsoDate(createdAt, "created_at", rowNumber),
       updatedAt: parseIsoDate(updatedAt, "updated_at", rowNumber),
     };
+
+    accountIds.add(parsedRow.accountId);
+    if (accountIds.size > MAX_TFSA_IMPORT_ACCOUNTS) {
+      throw new Error("CSV cannot contain more than 2,000 accounts.");
+    }
+
+    return parsedRow;
   });
 }

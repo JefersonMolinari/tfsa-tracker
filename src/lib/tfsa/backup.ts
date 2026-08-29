@@ -1,16 +1,30 @@
 import { z } from "zod";
 
 import { TransactionType } from "@/generated/prisma/client";
+import {
+  MAX_TFSA_STARTING_YEAR,
+  MIN_TFSA_STARTING_YEAR,
+  isValidTfsaTransactionAmount,
+} from "./domainRules";
+import {
+  MAX_TFSA_IMPORT_ACCOUNTS,
+  MAX_TFSA_IMPORT_BYTES,
+  MAX_TFSA_IMPORT_TRANSACTIONS,
+} from "./importLimits";
 
-export const MAX_TFSA_BACKUP_BYTES = 5 * 1024 * 1024;
+export const MAX_TFSA_BACKUP_BYTES = MAX_TFSA_IMPORT_BYTES;
 
 const isoTimestampSchema = z.string().datetime({ offset: true });
 
 const settingsSchema = z
   .object({
     id: z.literal(1),
-    startingYear: z.number().int(),
-    startingContributionRoomCents: z.number().int(),
+    startingYear: z
+      .number()
+      .int()
+      .min(MIN_TFSA_STARTING_YEAR)
+      .max(MAX_TFSA_STARTING_YEAR),
+    startingContributionRoomCents: z.number().int().nonnegative(),
     contributionRoomNotes: z.string().nullable(),
     createdAt: isoTimestampSchema,
     updatedAt: isoTimestampSchema,
@@ -39,20 +53,44 @@ const transactionSchema = z
     createdAt: isoTimestampSchema,
     updatedAt: isoTimestampSchema,
   })
-  .strict();
+  .strict()
+  .refine(
+    (transaction) =>
+      isValidTfsaTransactionAmount(
+        transaction.type,
+        transaction.amountCents,
+      ),
+    {
+      message: "Transaction amount is invalid for its type.",
+      path: ["amountCents"],
+    },
+  );
 
 const tfsaBackupV1Schema = z
   .object({
     version: z.literal(1),
     settings: settingsSchema.nullable(),
-    accounts: z.array(accountSchema).max(2_000),
-    transactions: z.array(transactionSchema).max(10_000),
+    accounts: z.array(accountSchema).max(MAX_TFSA_IMPORT_ACCOUNTS),
+    transactions: z.array(transactionSchema).max(MAX_TFSA_IMPORT_TRANSACTIONS),
   })
-  .strict();
+  .strict()
+  .superRefine((backup, context) => {
+    const accountIds = new Set(backup.accounts.map((account) => account.id));
+
+    backup.transactions.forEach((transaction, index) => {
+      if (!accountIds.has(transaction.accountId)) {
+        context.addIssue({
+          code: "custom",
+          message: `Transaction references missing account ${transaction.accountId}.`,
+          path: ["transactions", index, "accountId"],
+        });
+      }
+    });
+  });
 
 export type TfsaBackupV1 = z.infer<typeof tfsaBackupV1Schema>;
 
-type BackupSource = {
+export type TfsaBackupSource = {
   settings: {
     id: number;
     startingYear: number;
@@ -93,7 +131,7 @@ export function parseTfsaBackup(json: string): TfsaBackupV1 {
   return validateTfsaBackup(JSON.parse(json) as unknown);
 }
 
-export function serializeTfsaBackup(source: BackupSource): string {
+export function serializeTfsaBackup(source: TfsaBackupSource): string {
   const backup = validateTfsaBackup({
     version: 1,
     settings: source.settings

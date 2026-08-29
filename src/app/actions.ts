@@ -15,6 +15,11 @@ import {
 } from "@/lib/forms";
 import { parseTfsaBackup } from "@/lib/tfsa/backup";
 import { importTfsaBackup } from "@/lib/tfsa/backupPersistence";
+import {
+  MAX_TFSA_STARTING_YEAR,
+  MIN_TFSA_STARTING_YEAR,
+} from "@/lib/tfsa/domainRules";
+import { MAX_TFSA_IMPORT_BYTES } from "@/lib/tfsa/importLimits";
 import { importTransactionsCsvRows } from "@/lib/tfsa/importPersistence";
 import { parseTransactionsCsvImport } from "@/lib/tfsa/importTransactionsCsv";
 import { allowsNegativeAmount } from "@/lib/tfsa/transactionTypes";
@@ -34,7 +39,11 @@ const transactionSchema = z.object({
 });
 
 const settingsSchema = z.object({
-  startingYear: z.coerce.number().int().min(2009).max(2100),
+  startingYear: z.coerce
+    .number()
+    .int()
+    .min(MIN_TFSA_STARTING_YEAR)
+    .max(MAX_TFSA_STARTING_YEAR),
   startingContributionRoom: z.string().min(1),
   contributionRoomNotes: z.string().optional(),
 });
@@ -170,6 +179,10 @@ export async function importTransactionsCsv(formData: FormData) {
 
   if (!(file instanceof File) || file.size === 0) {
     throw new Error("Choose a transactions CSV exported from this app.");
+  }
+
+  if (file.size > MAX_TFSA_IMPORT_BYTES) {
+    throw new Error("Transactions CSV must be 5 MiB or smaller.");
   }
 
   const rows = parseTransactionsCsvImport(await file.text());

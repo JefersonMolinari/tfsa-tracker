@@ -1,5 +1,8 @@
 import type { Prisma, UserSettings } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
+import { getFullBackupData } from "@/lib/tfsa/backupData";
+
+export { getFullBackupData };
 
 export const defaultSettings = (year = new Date().getUTCFullYear()) =>
   ({
@@ -89,20 +92,4 @@ export async function getTransactionsCsvExportData() {
       { id: "asc" },
     ],
   });
-}
-
-export async function getFullBackupData() {
-  const [settings, accounts, transactions] = await Promise.all([
-    db.userSettings.findUnique({
-      where: { id: 1 },
-    }),
-    db.account.findMany({
-      orderBy: { id: "asc" },
-    }),
-    db.transaction.findMany({
-      orderBy: { id: "asc" },
-    }),
-  ]);
-
-  return { settings, accounts, transactions };
 }

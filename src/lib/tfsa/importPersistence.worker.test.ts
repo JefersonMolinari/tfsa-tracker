@@ -2,7 +2,9 @@ import { env } from "cloudflare:workers";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import type { TransactionCsvImportRow } from "./importTransactionsCsv";
-import { importTransactionsCsvRows } from "@/lib/tfsa/importPersistence";
+import * as importPersistence from "@/lib/tfsa/importPersistence";
+
+const { importTransactionsCsvRows } = importPersistence;
 
 const failureTriggerName = "force_import_transaction_foreign_key_failure";
 
@@ -22,6 +24,19 @@ function importRow(
     updatedAt: new Date("2026-02-01T02:00:00.000Z"),
     ...overrides,
   };
+}
+
+function maximumCsvRows(): TransactionCsvImportRow[] {
+  return Array.from({ length: 10_000 }, (_, index) =>
+    importRow({
+      transactionId: `txn_${index}`,
+      accountId: `acct_${index % 2_000}`,
+      accountName: "A",
+      institution: "I",
+      amountCents: 1,
+      notes: null,
+    }),
+  );
 }
 
 async function dropFailureTrigger() {
@@ -72,6 +87,42 @@ describe("Worker CSV import persistence", () => {
       amountCents: 250000,
       notes: "Imported transaction",
     });
+  });
+
+  it("treats a header-only CSV import as a real-D1 no-op", async () => {
+    await expect(importTransactionsCsvRows([])).resolves.toBeUndefined();
+
+    await expect(
+      env.DB.prepare('SELECT COUNT(*) AS "count" FROM "Account"').first(),
+    ).resolves.toMatchObject({ count: 0 });
+    await expect(
+      env.DB.prepare('SELECT COUNT(*) AS "count" FROM "Transaction"').first(),
+    ).resolves.toMatchObject({ count: 0 });
+  });
+
+  it("builds three real D1 statements for the maximum CSV row and account counts", async () => {
+    const buildStatements = (
+      importPersistence as typeof importPersistence & {
+        buildTransactionCsvStatements?: (
+          database: D1Database,
+          rows: TransactionCsvImportRow[],
+        ) => D1PreparedStatement[];
+      }
+    ).buildTransactionCsvStatements;
+
+    expect(buildStatements).toBeTypeOf("function");
+    if (!buildStatements) return;
+
+    const statements = buildStatements(env.DB, maximumCsvRows());
+
+    expect(statements).toHaveLength(3);
+    await expect(env.DB.batch(statements)).resolves.toHaveLength(3);
+    await expect(
+      env.DB.prepare('SELECT COUNT(*) AS "count" FROM "Account"').first(),
+    ).resolves.toMatchObject({ count: 2_000 });
+    await expect(
+      env.DB.prepare('SELECT COUNT(*) AS "count" FROM "Transaction"').first(),
+    ).resolves.toMatchObject({ count: 10_000 });
   });
 
   it("rolls back the account upsert when the transaction statement violates a foreign key", async () => {

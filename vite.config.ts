@@ -15,10 +15,14 @@ const workerImportPersistencePath = fileURLToPath(
 const workerBackupPersistencePath = fileURLToPath(
   new URL("./src/lib/tfsa/backupPersistence.worker.ts", import.meta.url),
 );
+const workerBackupDataPath = fileURLToPath(
+  new URL("./src/lib/tfsa/backupData.worker.ts", import.meta.url),
+);
 
 export default defineConfig({
   resolve: {
     alias: {
+      "@/lib/tfsa/backupData": workerBackupDataPath,
       "@/lib/tfsa/backupPersistence": workerBackupPersistencePath,
       "@/lib/tfsa/importPersistence": workerImportPersistencePath,
       "@/lib/db": workerDatabasePath,
@@ -42,6 +46,7 @@ export default defineConfig({
         return {
           resolve: {
             alias: {
+              "@/lib/tfsa/backupData": workerBackupDataPath,
               "@/lib/tfsa/backupPersistence": workerBackupPersistencePath,
               "@/lib/tfsa/importPersistence": workerImportPersistencePath,
               "@/lib/db": workerDatabasePath,

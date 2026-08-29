@@ -97,6 +97,54 @@ function backupFormData(contents: unknown = validBackup) {
   return formData;
 }
 
+const transactionsCsvHeader =
+  "transaction_id,account_id,account_name,institution,transaction_type,amount_cents,amount_cad,occurred_at,notes,created_at,updated_at\r\n";
+
+function transactionsCsvRow(
+  index: number,
+  accountIndex: number,
+  notes = "",
+) {
+  return `txn_${index},acct_${accountIndex},Account ${accountIndex},Institution,CONTRIBUTION,1,0.01,2026-02-01T00:00:00.000Z,${notes},2026-02-01T01:00:00.000Z,2026-02-01T02:00:00.000Z\r\n`;
+}
+
+function transactionsCsv(rowCount: number, uniqueAccountCount: number) {
+  return (
+    transactionsCsvHeader +
+    Array.from({ length: rowCount }, (_, index) =>
+      transactionsCsvRow(index, index % uniqueAccountCount),
+    ).join("")
+  );
+}
+
+function transactionsCsvWithExactBytes(targetBytes: number) {
+  const rowCount = 4;
+  const baseRows = Array.from({ length: rowCount }, (_, index) =>
+    transactionsCsvRow(index, 0),
+  );
+  const baseCsv = transactionsCsvHeader + baseRows.join("");
+  const paddingBytes = targetBytes - new TextEncoder().encode(baseCsv).byteLength;
+  const paddingPerRow = Math.floor(paddingBytes / rowCount);
+  const remainder = paddingBytes % rowCount;
+
+  return (
+    transactionsCsvHeader +
+    Array.from({ length: rowCount }, (_, index) =>
+      transactionsCsvRow(
+        index,
+        0,
+        "x".repeat(paddingPerRow + (index < remainder ? 1 : 0)),
+      ),
+    ).join("")
+  );
+}
+
+function transactionsCsvFormData(file: File) {
+  const formData = new FormData();
+  formData.set("transactionsCsv", file);
+  return formData;
+}
+
 describe("transaction actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -220,6 +268,102 @@ describe("transaction actions", () => {
     expect(revalidatePath).not.toHaveBeenCalled();
     expect(redirect).not.toHaveBeenCalled();
   });
+
+  it("accepts a CSV whose encoded size is exactly 5 MiB", async () => {
+    const { importTransactionsCsv } = await import("./actions");
+    const file = new File(
+      [transactionsCsvWithExactBytes(5 * 1024 * 1024)],
+      "tfsa-transactions.csv",
+      { type: "text/csv" },
+    );
+
+    expect(file.size).toBe(5 * 1024 * 1024);
+    await importTransactionsCsv(transactionsCsvFormData(file));
+
+    expect(importTransactionsCsvRows).toHaveBeenCalledTimes(1);
+    expect(importTransactionsCsvRows.mock.calls[0][0]).toHaveLength(4);
+  });
+
+  it("rejects a CSV one byte over 5 MiB before reading it", async () => {
+    const { importTransactionsCsv } = await import("./actions");
+    const file = new File(
+      [new Uint8Array(5 * 1024 * 1024 + 1)],
+      "tfsa-transactions.csv",
+      { type: "text/csv" },
+    );
+    const readFile = vi.spyOn(file, "text");
+
+    await expect(
+      importTransactionsCsv(transactionsCsvFormData(file)),
+    ).rejects.toThrow("5 MiB or smaller");
+
+    expect(readFile).not.toHaveBeenCalled();
+    expect(importTransactionsCsvRows).not.toHaveBeenCalled();
+  });
+
+  it("accepts exactly 10,000 transaction rows", async () => {
+    const { importTransactionsCsv } = await import("./actions");
+    const file = new File(
+      [transactionsCsv(10_000, 1)],
+      "tfsa-transactions.csv",
+      { type: "text/csv" },
+    );
+
+    await importTransactionsCsv(transactionsCsvFormData(file));
+
+    expect(importTransactionsCsvRows).toHaveBeenCalledTimes(1);
+    expect(importTransactionsCsvRows.mock.calls[0][0]).toHaveLength(10_000);
+  });
+
+  it("rejects 10,001 transaction rows before persistence", async () => {
+    const { importTransactionsCsv } = await import("./actions");
+    const file = new File(
+      [transactionsCsv(10_001, 1)],
+      "tfsa-transactions.csv",
+      { type: "text/csv" },
+    );
+
+    await expect(
+      importTransactionsCsv(transactionsCsvFormData(file)),
+    ).rejects.toThrow("more than 10,000 transactions");
+
+    expect(importTransactionsCsvRows).not.toHaveBeenCalled();
+  });
+
+  it("accepts exactly 2,000 unique accounts", async () => {
+    const { importTransactionsCsv } = await import("./actions");
+    const file = new File(
+      [transactionsCsv(2_000, 2_000)],
+      "tfsa-transactions.csv",
+      { type: "text/csv" },
+    );
+
+    await importTransactionsCsv(transactionsCsvFormData(file));
+
+    expect(importTransactionsCsvRows).toHaveBeenCalledTimes(1);
+    expect(
+      new Set(
+        importTransactionsCsvRows.mock.calls[0][0].map(
+          (row: { accountId: string }) => row.accountId,
+        ),
+      ).size,
+    ).toBe(2_000);
+  });
+
+  it("rejects 2,001 unique accounts before persistence", async () => {
+    const { importTransactionsCsv } = await import("./actions");
+    const file = new File(
+      [transactionsCsv(2_001, 2_001)],
+      "tfsa-transactions.csv",
+      { type: "text/csv" },
+    );
+
+    await expect(
+      importTransactionsCsv(transactionsCsvFormData(file)),
+    ).rejects.toThrow("more than 2,000 accounts");
+
+    expect(importTransactionsCsvRows).not.toHaveBeenCalled();
+  });
 });
 
 describe("account actions", () => {
@@ -294,6 +438,45 @@ describe("full-backup import action", () => {
 
     await expect(
       importTfsaBackupAction(backupFormData({ ...validBackup, version: 2 })),
+    ).rejects.toThrow();
+
+    expect(importTfsaBackup).not.toHaveBeenCalled();
+    expect(revalidatePath).not.toHaveBeenCalled();
+    expect(redirect).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [
+      "starting year",
+      {
+        ...validBackup,
+        settings: { ...validBackup.settings, startingYear: 2008 },
+      },
+    ],
+    [
+      "starting contribution room",
+      {
+        ...validBackup,
+        settings: {
+          ...validBackup.settings,
+          startingContributionRoomCents: -1,
+        },
+      },
+    ],
+    [
+      "transaction amount",
+      {
+        ...validBackup,
+        transactions: [
+          { ...validBackup.transactions[0], amountCents: -1 },
+        ],
+      },
+    ],
+  ])("rejects an invalid %s before persistence", async (_field, backup) => {
+    const { importTfsaBackupAction } = await import("./actions");
+
+    await expect(
+      importTfsaBackupAction(backupFormData(backup)),
     ).rejects.toThrow();
 
     expect(importTfsaBackup).not.toHaveBeenCalled();

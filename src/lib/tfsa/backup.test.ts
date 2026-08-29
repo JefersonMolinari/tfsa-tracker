@@ -7,6 +7,7 @@ const database = vi.hoisted(() => ({
   annualLimit: { findMany: vi.fn() },
   transaction: { findMany: vi.fn() },
   userSettings: { findUnique: vi.fn() },
+  $transaction: vi.fn(),
 }));
 
 vi.mock("@/lib/db", () => ({ db: database }));
@@ -141,6 +142,87 @@ describe("TFSA backup codec", () => {
     ).toThrow();
   });
 
+  it.each([2008, 2101])(
+    "rejects starting year %s outside the settings range",
+    (startingYear) => {
+      expect(() =>
+        parse({
+          ...validBackup,
+          settings: { ...validBackup.settings, startingYear },
+        }),
+      ).toThrow();
+    },
+  );
+
+  it("rejects negative starting contribution room", () => {
+    expect(() =>
+      parse({
+        ...validBackup,
+        settings: {
+          ...validBackup.settings,
+          startingContributionRoomCents: -1,
+        },
+      }),
+    ).toThrow();
+  });
+
+  it.each([
+    "CONTRIBUTION",
+    "WITHDRAWAL",
+    "QUALIFYING_TRANSFER",
+    "FEE",
+    "DIVIDEND",
+    "INTEREST",
+    "BALANCE_SNAPSHOT",
+  ] as const)("rejects a negative %s transaction", (type) => {
+    expect(() =>
+      parse({
+        ...validBackup,
+        transactions: [
+          { ...validBackup.transactions[0], type, amountCents: -1 },
+        ],
+      }),
+    ).toThrow();
+  });
+
+  it("accepts a negative market adjustment transaction", () => {
+    expect(
+      parse({
+        ...validBackup,
+        transactions: [
+          {
+            ...validBackup.transactions[0],
+            type: "MARKET_ADJUSTMENT",
+            amountCents: -1,
+          },
+        ],
+      }).transactions[0],
+    ).toMatchObject({ type: "MARKET_ADJUSTMENT", amountCents: -1 });
+  });
+
+  it("rejects an imported transaction whose account is absent", () => {
+    expect(() =>
+      parse({
+        ...validBackup,
+        transactions: [
+          { ...validBackup.transactions[0], accountId: "acct_missing" },
+        ],
+      }),
+    ).toThrow("missing account");
+  });
+
+  it("refuses to serialize an exported transaction whose account is absent", () => {
+    expect(() =>
+      serializeTfsaBackup({
+        settings: settingsSource,
+        accounts: [accountSource],
+        transactions: [
+          { ...transactionSource, accountId: "acct_missing" },
+        ],
+      }),
+    ).toThrow("missing account");
+  });
+
   it("rejects a backup larger than 5 MiB", () => {
     const oversized = JSON.stringify({
       ...validBackup,
@@ -181,6 +263,9 @@ describe("TFSA backup codec", () => {
 describe("getFullBackupData", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    database.$transaction.mockImplementation(
+      async (read: (snapshot: typeof database) => unknown) => read(database),
+    );
     database.userSettings.findUnique.mockResolvedValue(settingsSource);
     database.account.findMany.mockResolvedValue([accountSource]);
     database.transaction.findMany.mockResolvedValue([transactionSource]);
@@ -203,5 +288,29 @@ describe("getFullBackupData", () => {
       orderBy: { id: "asc" },
     });
     expect(database.annualLimit.findMany).not.toHaveBeenCalled();
+  });
+
+  it("returns one coherent snapshot when live tables change between reads", async () => {
+    const snapshotDatabase = {
+      userSettings: { findUnique: vi.fn().mockResolvedValue(settingsSource) },
+      account: { findMany: vi.fn().mockResolvedValue([accountSource]) },
+      transaction: { findMany: vi.fn().mockResolvedValue([transactionSource]) },
+    };
+    database.$transaction.mockImplementationOnce(
+      async (read: (snapshot: typeof snapshotDatabase) => unknown) =>
+        read(snapshotDatabase),
+    );
+    database.account.findMany.mockImplementationOnce(async () => {
+      database.transaction.findMany.mockResolvedValueOnce([
+        { ...transactionSource, accountId: "acct_new" },
+      ]);
+      return [accountSource];
+    });
+
+    await expect(getFullBackupData()).resolves.toEqual({
+      settings: settingsSource,
+      accounts: [accountSource],
+      transactions: [transactionSource],
+    });
   });
 });

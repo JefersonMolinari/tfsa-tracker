@@ -1,8 +1,10 @@
 import { env } from "cloudflare:workers";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import type { TfsaBackupV1 } from "./backup";
-import { importTfsaBackup } from "@/lib/tfsa/backupPersistence";
+import * as backupPersistence from "@/lib/tfsa/backupPersistence";
+
+const { importTfsaBackup } = backupPersistence;
 
 const originalSettings = {
   id: 1,
@@ -32,6 +34,7 @@ const originalTransaction = {
   createdAt: "2026-01-06T00:00:00.000Z",
   updatedAt: "2026-01-07T00:00:00.000Z",
 };
+const failureTriggerName = "force_backup_account_failure";
 
 function validBackup(): TfsaBackupV1 {
   return {
@@ -69,6 +72,41 @@ function validBackup(): TfsaBackupV1 {
   };
 }
 
+function maximumCountBackup(): TfsaBackupV1 {
+  const createdAt = "2026-02-01T00:00:00.000Z";
+  const updatedAt = "2026-02-02T00:00:00.000Z";
+
+  return {
+    version: 1,
+    settings: {
+      id: 1,
+      startingYear: 2024,
+      startingContributionRoomCents: 0,
+      contributionRoomNotes: null,
+      createdAt,
+      updatedAt,
+    },
+    accounts: Array.from({ length: 2_000 }, (_, index) => ({
+      id: `acct_${index}`,
+      name: "A",
+      institution: "I",
+      notes: null,
+      createdAt,
+      updatedAt,
+    })),
+    transactions: Array.from({ length: 10_000 }, (_, index) => ({
+      id: `txn_${index}`,
+      accountId: `acct_${index % 2_000}`,
+      type: "CONTRIBUTION",
+      amountCents: 1,
+      occurredAt: createdAt,
+      notes: null,
+      createdAt,
+      updatedAt,
+    })),
+  };
+}
+
 async function seedOriginalRows() {
   await env.DB.batch([
     env.DB.prepare(
@@ -97,8 +135,13 @@ async function readRows() {
   return { settings, account, transaction };
 }
 
+async function dropFailureTrigger() {
+  await env.DB.prepare(`DROP TRIGGER IF EXISTS "${failureTriggerName}"`).run();
+}
+
 describe("Worker full-backup persistence", () => {
   beforeEach(async () => {
+    await dropFailureTrigger();
     await env.DB.batch([
       env.DB.prepare('DELETE FROM "Transaction"'),
       env.DB.prepare('DELETE FROM "Account"'),
@@ -106,18 +149,23 @@ describe("Worker full-backup persistence", () => {
     ]);
   });
 
-  it("rolls back every preseeded field when the final transaction has a missing account", async () => {
+  afterEach(dropFailureTrigger);
+
+  it("rolls back every preseeded field when a bulk account upsert fails", async () => {
     await seedOriginalRows();
     const before = await readRows();
     const backup = validBackup();
-    backup.transactions.push({
-      ...backup.transactions[0],
-      id: "txn_missing_account",
-      accountId: "acct_missing",
-    });
+    await env.DB.prepare(
+      `CREATE TRIGGER "${failureTriggerName}"
+       BEFORE UPDATE ON "Account"
+       WHEN NEW."id" = 'acct_existing'
+       BEGIN
+         SELECT RAISE(ABORT, 'forced backup failure');
+       END`,
+    ).run();
 
     await expect(importTfsaBackup(backup)).rejects.toThrow(
-      /FOREIGN KEY constraint failed/,
+      /forced backup failure/,
     );
 
     expect(await readRows()).toEqual(before);
@@ -164,6 +212,31 @@ describe("Worker full-backup persistence", () => {
     await expect(
       env.DB.prepare('SELECT COUNT(*) AS "count" FROM "Transaction"').first(),
     ).resolves.toMatchObject({ count: 0 });
+  });
+
+  it("builds four real D1 statements for the maximum account and transaction counts", async () => {
+    const buildStatements = (
+      backupPersistence as typeof backupPersistence & {
+        buildTfsaBackupStatements?: (
+          database: D1Database,
+          backup: TfsaBackupV1,
+        ) => D1PreparedStatement[];
+      }
+    ).buildTfsaBackupStatements;
+
+    expect(buildStatements).toBeTypeOf("function");
+    if (!buildStatements) return;
+
+    const statements = buildStatements(env.DB, maximumCountBackup());
+
+    expect(statements).toHaveLength(4);
+    await expect(env.DB.batch(statements)).resolves.toHaveLength(4);
+    await expect(
+      env.DB.prepare('SELECT COUNT(*) AS "count" FROM "Account"').first(),
+    ).resolves.toMatchObject({ count: 2_000 });
+    await expect(
+      env.DB.prepare('SELECT COUNT(*) AS "count" FROM "Transaction"').first(),
+    ).resolves.toMatchObject({ count: 10_000 });
   });
 
   it("rejects invalid structure before changing D1", async () => {
