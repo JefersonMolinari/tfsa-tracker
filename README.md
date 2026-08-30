@@ -1,8 +1,8 @@
 # TFSA Tracker
 
-A private, local-only personal finance app for tracking estimated TFSA contribution room.
+A private, password-gated personal finance app for tracking estimated TFSA contribution room. The hosted app is available at [https://tfsa.molinaristudios.com](https://tfsa.molinaristudios.com), where a Cloudflare Worker stores data centrally in Cloudflare D1.
 
-The app runs on Next.js, stores data locally in SQLite, and uses Prisma for database access. It does not connect to CRA, banks, brokerages, cloud databases, or external account services.
+The app does not connect to CRA, banks, brokerages, or external account services. It has one password-gated user and no public accounts or data-sharing features.
 
 ## Manual Setup
 
@@ -18,6 +18,8 @@ The app runs on Next.js, stores data locally in SQLite, and uses Prisma for data
    cp .env.example .env
    ```
 
+   Add your own uncommitted local development values for `TFSA_PASSWORD` and `TFSA_SESSION_SECRET`; this repository intentionally supplies no values for them.
+
 3. Generate Prisma Client, apply migrations, and seed annual TFSA limits:
 
    ```sh
@@ -31,6 +33,36 @@ The app runs on Next.js, stores data locally in SQLite, and uses Prisma for data
    ```
 
 5. Open [http://localhost:3000](http://localhost:3000).
+
+## One-time hosted deployment setup
+
+Run these commands once, in this order, after reviewing the Cloudflare configuration. They are instructions only; do not run them from GitHub Actions or copy secrets into this repository.
+
+1. `npx wrangler login`
+2. `npx wrangler d1 create tfsa-tracker`
+3. **Before continuing**, copy the real `database_id` printed by the D1-create command into the existing `database_id` field in `wrangler.jsonc`. Do not use a guessed value or continue to `npm run cf:types` until this is complete.
+4. `npm run cf:types`
+5. `npm run d1:migrate:remote`
+6. `npx wrangler secret put TFSA_PASSWORD`
+7. `npx wrangler secret put TFSA_SESSION_SECRET`
+8. In Cloudflare DNS, create or confirm both originless placeholder records for `tfsa`: a proxied `A` record to `192.0.2.0` and a proxied `AAAA` record to `100::`. The Worker route requires a proxied record, and both address families keep the hostname reachable to IPv4-only and IPv6 clients.
+9. Confirm that public DNS resolves both families with `dig +short A tfsa.molinaristudios.com` and `dig +short AAAA tfsa.molinaristudios.com`. Do not deploy until both commands return Cloudflare proxy addresses.
+10. `npm run deploy`
+
+After deployment, repeat both DNS lookups and verify that `curl -I https://tfsa.molinaristudios.com` reaches Cloudflare and redirects an anonymous request to `/login`. Record the immutable Worker version from `npx wrangler deployments list --name tfsa-tracker` and the UTC verification timestamp in the release notes.
+
+For GitHub deployment automation, create a Cloudflare API token limited to **Workers Scripts Edit**, **Workers Routes Edit**, and **D1 Edit**, then add only `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` as GitHub repository secrets. `TFSA_PASSWORD` and `TFSA_SESSION_SECRET` are Worker session secrets: set them directly in Cloudflare with the commands above and never add them to GitHub, actions workflows, committed environment files, or documentation as values.
+
+GitHub Pages is not an acceptable deployment target: it cannot provide the Worker, D1 database, or password gate. Do not upload `prisma/dev.db`; it is a local development database, not a hosted migration path.
+
+## First migration to hosted storage
+
+CSV and full-backup imports are each limited to 5 MiB, 2,000 unique accounts, and 10,000 transactions. Split larger migrations before importing them.
+
+1. Run the updated local app and download its JSON backup.
+2. Sign in at [https://tfsa.molinaristudios.com](https://tfsa.molinaristudios.com).
+3. Open **Settings**.
+4. Import the JSON backup there to copy the local data into the hosted D1-backed app.
 
 ## Setup With Codex
 

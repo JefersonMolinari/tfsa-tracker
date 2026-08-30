@@ -8,6 +8,10 @@ vi.mock("@/app/actions", () => ({
   createTransaction: vi.fn(),
 }));
 
+vi.mock("@/lib/auth/session", () => ({
+  requireSession: vi.fn().mockResolvedValue({ exp: 1_800_000_000 }),
+}));
+
 vi.mock("@/lib/tfsa/data", () => ({
   getAppData,
 }));

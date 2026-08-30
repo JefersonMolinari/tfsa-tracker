@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 import Link from "next/link";
-import type { TransactionType } from "@prisma/client";
+import type { TransactionType } from "@/generated/prisma/client";
 
 import { EmptyState, Field, IconButton, PrimaryButton, SelectField, TextArea } from "@/components/ui";
 import { transactionTypeLabels, transactionTypes } from "@/lib/tfsa/transactionTypes";

@@ -7,11 +7,10 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 ## Product direction
 
-This is a private, local-only personal finance app for tracking TFSA contribution room.
+This is a private, hosted, single-user personal finance app for tracking TFSA contribution room. It uses a Cloudflare Worker password gate and central Cloudflare D1 storage at `https://tfsa.molinaristudios.com`.
 
 Do not add:
-- Authentication
-- Cloud database
+- Public access, self-service registration, or multi-user support
 - Bank integrations
 - CRA integrations
 - Investment advice
@@ -26,6 +25,8 @@ Use:
 - Tailwind
 - Prisma
 - SQLite
+- Cloudflare Workers
+- Cloudflare D1
 - Vitest
 
 Store money as integer cents, never floating-point dollars.
@@ -44,6 +45,8 @@ Never ask for or store:
 - Brokerage passwords
 - SIN
 - Account numbers
+
+Keep `TFSA_PASSWORD` and `TFSA_SESSION_SECRET` as Cloudflare Worker secrets. They must never appear as values in source code, tests, committed environment files, GitHub Actions, or documentation. GitHub deployment credentials are limited to `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` repository secrets and are separate from Worker session secrets.
 
 ## UI direction
 

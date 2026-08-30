@@ -3,8 +3,12 @@ import {
   buildTransactionsCsvFilename,
   serializeTransactionsToCsv,
 } from "../../../lib/tfsa/exportTransactionsCsv";
+import { requireSession } from "@/lib/auth/session";
+
+export const dynamic = "force-dynamic";
 
 export async function GET() {
+  await requireSession();
   const transactions = await getTransactionsCsvExportData();
   const csv = serializeTransactionsToCsv(transactions);
   const filename = buildTransactionsCsvFilename();

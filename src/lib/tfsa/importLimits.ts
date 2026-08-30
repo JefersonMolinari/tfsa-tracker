@@ -1,0 +1,3 @@
+export const MAX_TFSA_IMPORT_BYTES = 5 * 1024 * 1024;
+export const MAX_TFSA_IMPORT_ACCOUNTS = 2_000;
+export const MAX_TFSA_IMPORT_TRANSACTIONS = 10_000;

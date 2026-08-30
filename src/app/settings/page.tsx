@@ -1,4 +1,7 @@
-import { saveSettings } from "@/app/actions";
+import Link from "next/link";
+
+import { importTfsaBackupAction, saveSettings } from "@/app/actions";
+import { BackupImportButton } from "@/app/backup/BackupImportButton";
 import {
   Card,
   Field,
@@ -9,16 +12,33 @@ import {
 } from "@/components/ui";
 import { getAppData } from "@/lib/tfsa/data";
 import { formatCents } from "@/lib/format";
+import { requireSession } from "@/lib/auth/session";
 
-export default async function SettingsPage() {
-  const { settings } = await getAppData();
+export const dynamic = "force-dynamic";
+
+export default async function SettingsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ backupImported?: string }>;
+} = {}) {
+  await requireSession();
+  const [{ settings }, filters] = await Promise.all([
+    getAppData(),
+    searchParams ?? Promise.resolve<{ backupImported?: string }>({}),
+  ]);
 
   return (
-    <div>
+    <div className="space-y-6">
       <PageIntro
         title="Settings"
         description="Set the starting point for your estimated TFSA contribution room and keep a note about how you verified it."
       />
+
+      {filters.backupImported === "1" ? (
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-medium text-emerald-900">
+          Full backup imported successfully.
+        </div>
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
         <Card>
@@ -88,6 +108,22 @@ export default async function SettingsPage() {
           </dl>
         </Card>
       </div>
+
+      <Card>
+        <SectionTitle
+          title="Full backup"
+          description="Download settings, accounts, and transactions as JSON, or restore a full backup exported from this app. Annual contribution limits are maintained by the app and are not included."
+        />
+        <div className="flex flex-wrap gap-3">
+          <Link
+            className="inline-flex rounded-full bg-emerald-700 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-800"
+            href="/backup/export"
+          >
+            Download full backup
+          </Link>
+          <BackupImportButton importAction={importTfsaBackupAction} />
+        </div>
+      </Card>
     </div>
   );
 }

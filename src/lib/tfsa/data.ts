@@ -1,6 +1,8 @@
-import type { Prisma, UserSettings } from "@prisma/client";
-
+import type { Prisma, UserSettings } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
+import { getFullBackupData } from "@/lib/tfsa/backupData";
+
+export { getFullBackupData };
 
 export const defaultSettings = (year = new Date().getUTCFullYear()) =>
   ({

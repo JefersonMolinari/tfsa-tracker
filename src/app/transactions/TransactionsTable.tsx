@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useState } from "react";
-import type { TransactionType } from "@prisma/client";
+import type { TransactionType } from "@/generated/prisma/client";
 
 import {
   Field,

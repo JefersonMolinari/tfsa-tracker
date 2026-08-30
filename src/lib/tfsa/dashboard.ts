@@ -1,4 +1,9 @@
-import type { AnnualLimit, Transaction, TransactionType, UserSettings } from "@prisma/client";
+import type {
+  AnnualLimit,
+  Transaction,
+  TransactionType,
+  UserSettings,
+} from "@/generated/prisma/client";
 
 import {
   estimateTfsaContributionRoom,

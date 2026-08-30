@@ -1,5 +1,4 @@
-import type { TransactionType } from "@prisma/client";
-
+import type { TransactionType } from "@/generated/prisma/client";
 import { transactionTypes } from "@/lib/tfsa/transactionTypes";
 
 const GRAND_TOTAL_NEGATIVE_TYPES = new Set<TransactionType>(["WITHDRAWAL"]);

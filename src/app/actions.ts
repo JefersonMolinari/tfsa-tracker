@@ -2,16 +2,25 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { TransactionType, type Prisma } from "@prisma/client";
 import { z } from "zod";
 
+import { TransactionType, type Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
+import { requireSession } from "@/lib/auth/session";
 import {
   getOptionalString,
   getString,
   parseCurrencyInputToCents,
   parseDateInput,
 } from "@/lib/forms";
+import { parseTfsaBackup } from "@/lib/tfsa/backup";
+import { importTfsaBackup } from "@/lib/tfsa/backupPersistence";
+import {
+  MAX_TFSA_STARTING_YEAR,
+  MIN_TFSA_STARTING_YEAR,
+} from "@/lib/tfsa/domainRules";
+import { MAX_TFSA_IMPORT_BYTES } from "@/lib/tfsa/importLimits";
+import { importTransactionsCsvRows } from "@/lib/tfsa/importPersistence";
 import { parseTransactionsCsvImport } from "@/lib/tfsa/importTransactionsCsv";
 import { allowsNegativeAmount } from "@/lib/tfsa/transactionTypes";
 
@@ -30,7 +39,11 @@ const transactionSchema = z.object({
 });
 
 const settingsSchema = z.object({
-  startingYear: z.coerce.number().int().min(2009).max(2100),
+  startingYear: z.coerce
+    .number()
+    .int()
+    .min(MIN_TFSA_STARTING_YEAR)
+    .max(MAX_TFSA_STARTING_YEAR),
   startingContributionRoom: z.string().min(1),
   contributionRoomNotes: z.string().optional(),
 });
@@ -47,6 +60,7 @@ function redirectToPath(formData: FormData, fallbackPath: string) {
 }
 
 export async function createAccount(formData: FormData) {
+  await requireSession();
   const parsed = accountSchema.parse({
     name: getString(formData, "name"),
     institution: getString(formData, "institution"),
@@ -66,6 +80,7 @@ export async function createAccount(formData: FormData) {
 }
 
 export async function updateAccount(formData: FormData) {
+  await requireSession();
   const accountId = getString(formData, "accountId");
   const parsed = accountSchema.parse({
     name: getString(formData, "name"),
@@ -87,6 +102,7 @@ export async function updateAccount(formData: FormData) {
 }
 
 export async function deleteAccount(formData: FormData) {
+  await requireSession();
   const accountId = getString(formData, "accountId");
 
   await db.account.delete({
@@ -120,6 +136,7 @@ function getTransactionInput(formData: FormData): Prisma.TransactionUncheckedCre
 }
 
 export async function createTransaction(formData: FormData) {
+  await requireSession();
   const input = getTransactionInput(formData);
 
   await db.transaction.create({
@@ -131,6 +148,7 @@ export async function createTransaction(formData: FormData) {
 }
 
 export async function updateTransaction(formData: FormData) {
+  await requireSession();
   const transactionId = getString(formData, "transactionId");
   const input = getTransactionInput(formData);
 
@@ -144,6 +162,7 @@ export async function updateTransaction(formData: FormData) {
 }
 
 export async function deleteTransaction(formData: FormData) {
+  await requireSession();
   const transactionId = getString(formData, "transactionId");
 
   await db.transaction.delete({
@@ -155,71 +174,41 @@ export async function deleteTransaction(formData: FormData) {
 }
 
 export async function importTransactionsCsv(formData: FormData) {
+  await requireSession();
   const file = formData.get("transactionsCsv");
 
   if (!(file instanceof File) || file.size === 0) {
     throw new Error("Choose a transactions CSV exported from this app.");
   }
 
+  if (file.size > MAX_TFSA_IMPORT_BYTES) {
+    throw new Error("Transactions CSV must be 5 MiB or smaller.");
+  }
+
   const rows = parseTransactionsCsvImport(await file.text());
-  const accountsById = new Map(
-    rows.map((row) => [
-      row.accountId,
-      {
-        id: row.accountId,
-        name: row.accountName,
-        institution: row.institution,
-      },
-    ]),
-  );
-
-  await db.$transaction(async (tx) => {
-    for (const account of accountsById.values()) {
-      await tx.account.upsert({
-        where: { id: account.id },
-        update: {
-          name: account.name,
-          institution: account.institution,
-        },
-        create: {
-          id: account.id,
-          name: account.name,
-          institution: account.institution,
-        },
-      });
-    }
-
-    for (const row of rows) {
-      await tx.transaction.upsert({
-        where: { id: row.transactionId },
-        update: {
-          accountId: row.accountId,
-          type: row.type,
-          amountCents: row.amountCents,
-          occurredAt: row.occurredAt,
-          notes: row.notes,
-          createdAt: row.createdAt,
-          updatedAt: row.updatedAt,
-        },
-        create: {
-          id: row.transactionId,
-          accountId: row.accountId,
-          type: row.type,
-          amountCents: row.amountCents,
-          occurredAt: row.occurredAt,
-          notes: row.notes,
-          createdAt: row.createdAt,
-          updatedAt: row.updatedAt,
-        },
-      });
-    }
-  });
+  await importTransactionsCsvRows(rows);
 
   revalidateAppPages();
   redirect(`/transactions?imported=${rows.length}`);
 }
 
+export async function importTfsaBackupAction(formData: FormData) {
+  await requireSession();
+  const file = formData.get("backupFile");
+
+  if (!(file instanceof File) || file.size === 0) {
+    throw new Error("Choose a full-backup JSON file exported from this app.");
+  }
+
+  const backup = parseTfsaBackup(await file.text());
+  await importTfsaBackup(backup);
+
+  revalidateAppPages();
+  redirect("/settings?backupImported=1");
+}
+
 export async function saveSettings(formData: FormData) {
+  await requireSession();
   const parsed = settingsSchema.parse({
     startingYear: getString(formData, "startingYear"),
     startingContributionRoom: getString(formData, "startingContributionRoom"),

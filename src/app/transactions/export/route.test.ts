@@ -6,6 +6,10 @@ vi.mock("../../../lib/tfsa/data", () => ({
   getTransactionsCsvExportData,
 }));
 
+vi.mock("@/lib/auth/session", () => ({
+  requireSession: vi.fn().mockResolvedValue({ exp: 1_800_000_000 }),
+}));
+
 afterEach(() => {
   vi.useRealTimers();
   vi.clearAllMocks();
